@@ -37,11 +37,11 @@ All folder structures in this document use consistent placeholder names:
 
 **Slice types:** Both `[EntityName]` and `[ProcessName]` live as siblings inside `Slices/`. Entity slices group use cases for a single entity. Process slices group orchestration logic that spans multiple entities.
 
-**File organization choice — "Unified vs Granular":** For each slice type, every file category (Controllers, Services, Actions, DTOs, Repositories) can be organized in two ways:
-- **Unified (one file per entity/process):** A single `[EntityName]Controller.{ext}` contains all handler methods. A single `[EntityName]Service.{ext}` contains all entity-scoped use cases. Simpler for small slices with few use cases.
-- **Granular (one file per feature):** Separate `[FeatureName]Controller.{ext}` or `[FeatureName]Action.{ext}` files, each handling a single use case. Better for complex slices with many use cases.
+**Slice Action Organization Styles (Feature Subfolders vs Unified Multi-Action):** When using vertical slices, choose one consistent organization style for use cases within slices:
+- **Feature Subfolders (Recommended):** Each use case is grouped into its own dedicated feature subfolder: `Slices/[EntityName]/[FeatureName]/` containing `[FeatureName]Action.{ext}`, `[FeatureName]Dto.{ext}`, and `[FeatureName]Handler.{ext}` (alongside a shared `[EntityName]Repository.{ext}`). Guarantees maximum feature isolation, single responsibility, and prevents flat directory clutter as features multiply.
+- **Unified Multi-Action:** Actions and services are grouped into a single `[EntityName]Controller.{ext}` and `[EntityName]Service.{ext}` per entity. Follows traditional MVC conventions with fewer files.
 
-Choose uniformly within a slice — don't mix unified Controllers with granular Services.
+When generating `ARCHITECTURE.md`, the chosen organization style is selected and documented consistently across all slices.
 
 ## Quick Decision Guide
 
@@ -210,9 +210,12 @@ src/
 src/
 ├── [ContextName]/                              # ── BOUNDED CONTEXT ──
 │   ├── Domain/                                 # PURE DOMAIN (zero external deps)
-│   │   ├── Enums/
-│   │   ├── Exceptions/
-│   │   └── Ports/                              # Interfaces only
+│   │   ├── [EntityName].{ext}                  # Standalone entities (e.g. User.{ext})
+│   │   ├── [AggregateName]/                    # Dedicated folder when aggregate has child entities
+│   │   │   ├── [AggregateName].{ext}           # Aggregate root
+│   │   │   └── [ChildEntity].{ext}             # Child entity inside aggregate boundary
+│   │   ├── Ports/                              # Interfaces only (repositories, gateways)
+│   │   └── Exceptions/                         # Domain-specific exceptions
 │   │
 │   ├── Application/                            # ALL USE CASES (entity-scoped + cross-entity)
 │   │   ├── [EntityName]/                       # Entity-scoped use cases, DTOs
@@ -253,9 +256,12 @@ src/
 src/
 ├── [ContextName]/                              # ── BOUNDED CONTEXT ──
 │   ├── Domain/                                 # PURE DOMAIN (shared across slices)
-│   │   ├── Enums/
-│   │   ├── Exceptions/
-│   │   └── Ports/
+│   │   ├── [EntityName].{ext}                  # Standalone entities
+│   │   ├── [AggregateName]/                    # Dedicated folder when aggregate has child entities
+│   │   │   ├── [AggregateName].{ext}           # Aggregate root
+│   │   │   └── [ChildEntity].{ext}             # Child entity inside aggregate boundary
+│   │   ├── Ports/                              # Repository & gateway interfaces
+│   │   └── Exceptions/                         # Domain-specific exceptions
 │   │
 │   ├── Slices/
 │   │   ├── [EntityName]/                       # Entity slice — use cases for this entity only
@@ -313,9 +319,12 @@ For smaller entities or when striving for maximum locality (cohesion), the inter
 src/
 ├── [ContextName]/                              # ── BOUNDED CONTEXT ──
 │   ├── Domain/                                 # PURE DOMAIN (shared across slices)
-│   │   ├── Enums/
-│   │   ├── Exceptions/
-│   │   └── Ports/
+│   │   ├── [EntityName].{ext}                  # Standalone entities
+│   │   ├── [AggregateName]/                    # Dedicated folder when aggregate has child entities
+│   │   │   ├── [AggregateName].{ext}           # Aggregate root
+│   │   │   └── [ChildEntity].{ext}             # Child entity inside aggregate boundary
+│   │   ├── Ports/                              # Repository & gateway interfaces
+│   │   └── Exceptions/                         # Domain-specific exceptions
 │   │
 │   ├── Slices/
 │   │   ├── [EntityName]/                       # Flat entity slice — all files side-by-side
@@ -347,7 +356,10 @@ src/
   - Cross-context communication happens through DTOs, facades, or domain events.
   - **Context Mapping:** Contexts communicate through strategic DDD relationship patterns like Customer/Supplier or Anti-Corruption Layer (ACL). Note that a Context Map is a strategic view of your system; an ACL is a specific integration pattern used within that map.
 
-2. **Domain Layer Purity:** The domain layer has ZERO dependencies on frameworks, databases, or external services. Contains Entities, Aggregates, Value Objects, Domain Events, Ports (interfaces), and Domain Exceptions.
+2. **Domain Layer Purity & Structure:** The domain layer has ZERO dependencies on frameworks, databases, or external services. Contains Entities, Aggregates, Value Objects, Domain Events, Ports (interfaces), and Domain Exceptions.
+   - **Standalone Entities:** Simple entities live directly in the root of `Domain/` (e.g. `User.{ext}`).
+   - **Aggregate Folders:** When an entity is an Aggregate Root with child entities or tightly coupled internal types (e.g. `Order` with `OrderItem`), group them in a dedicated aggregate folder: `Domain/[AggregateName]/` (`Order/Order.{ext}`, `Order/OrderItem.{ext}`).
+   - **Ports & Exceptions:** Keep `Ports/` for outbound interfaces and `Exceptions/` for domain business rule errors. Additional subfolders (`Events/`, `ValueObjects/`, `Enums/`) are introduced only as domain complexity demands.
 
 3. **Ports and Adapters (Hexagonal):** The domain defines interfaces (ports). Infrastructure implements them (adapters). Dependencies point INWARD.
 

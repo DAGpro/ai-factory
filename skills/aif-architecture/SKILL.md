@@ -1,7 +1,7 @@
 ---
 name: aif-architecture
 description: Generate architecture guidelines for the project. Analyzes tech stack from DESCRIPTION.md, recommends an architecture pattern, and creates .ai-factory/ARCHITECTURE.md. Use when setting up project architecture, asking "which architecture", or after /aif setup.
-argument-hint: "[microservices|layers|structured|structured-layers|structured-vertical|explicit|explicit-layers|explicit-vertical|explicit-flat] (legacy aliases: clean, ddd, monolith, vertical → mapped to explicit or structured)"
+argument-hint: "[layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo]]"
 allowed-tools: Read Write Glob Grep Bash(mkdir *) AskUserQuestion Questions
 disable-model-invocation: false
 ---
@@ -95,9 +95,9 @@ Based on project context, evaluate against the decision matrix and recommend an 
 **If `$ARGUMENTS` specifies an architecture** (e.g., `/aif-architecture explicit`):
 - **Direct mapping** (no suffix needed):
   - `layers` → Layered Architecture
-  - `microservices` → Microservices
   - `structured` → Structured Modules (ask variant — see below)
   - `explicit` → Explicit Architecture (ask variant — see below)
+  - `microservices` → Microservices (ask variant — see below)
 - **Legacy aliases** (deprecated, mapped to current patterns — may be removed in future):
   - `clean` → Explicit Architecture
   - `ddd` → Explicit Architecture
@@ -109,9 +109,14 @@ Based on project context, evaluate against the decision matrix and recommend an 
   - `explicit-layers` → Explicit Architecture (Technical Layer)
   - `explicit-vertical` → Explicit Architecture (Vertical Slice By Entity)
   - `explicit-flat` → Explicit Architecture (Flat Vertical Slice - Simplified)
+  - `microservices-single` → Microservices (Single Service Repository)
+  - `microservices-monorepo` → Microservices (Monorepo)
 - **Without suffix** (ask user to choose variant):
   - If `structured` is specified without a suffix: ASK the user: "Which folder structure variant do you prefer for Structured Modules? 1. Technical Layer (simpler) or 2. Vertical Slices by Entity (better for large modules)". Wait for their answer before generating the artifact.
   - If `explicit` is specified without a suffix: ASK the user: "Which folder structure variant do you prefer for Explicit Architecture? 1. Technical Layer or 2. Explicit Architecture (Vertical Slice By Entity) or 3. Explicit Architecture (Flat Vertical Slice - Simplified)". Wait for their answer before generating the artifact.
+  - If `microservices` is specified without a suffix: ASK the user: "Which repository structure do you prefer for Microservices? 1. Single Microservice (dedicated repository) or 2. Multiple Microservices (monorepo with Gateway/Libs)". Wait for their answer before generating the artifact.
+- **For Vertical Slices (action organization choice):**
+  - When a vertical slice variant is chosen (`structured-vertical`, `explicit-vertical`, `explicit-flat`), ASK the user: "Which action organization style do you prefer inside vertical slices? 1. Feature Subfolders (Recommended) — dedicated folder `[EntityName]/[FeatureName]/` with Action, DTO, Handler (best for isolation) or 2. Unified Multi-Action — single `[EntityName]Controller` and `[EntityName]Service` per entity". Wait for their answer before generating the artifact.
 - Use the resolved architecture directly, skip the recommendation step and proceed to Step 1.5
 
 **If no specific architecture requested:**
@@ -146,73 +151,85 @@ Architecture options:
 
 ### Step 1.5: Codebase Alignment Check
 
-**CRITICAL:** Before generating the document, compare the chosen architecture's ideal folder structure (from `references/architecture.md`) against the actual existing codebase structure.
+**CRITICAL:** Before generating the document, inspect existing application directories (using `Glob`):
+- Distinguish technical layers (role-named folders with homogeneous files across entities: `controllers/`, `models/`) from feature modules (domain-named folders grouping cohesive feature logic: `users/`, `billing/`) and bootstrap framing files.
 
-- If the project is empty or mostly matches: proceed to Step 2.
-- **If there are significant discrepancies:** DO NOT silently merge the ideal architecture with the messy reality. You MUST stop and ask the user how to proceed via `AskUserQuestion`:
+1. **Clean Project or Starter Scaffolding:**
+   - If empty or containing only bootstrap framing: proceed directly to Step 2 without asking.
+   - In Step 2, generate `## Code Organization Policy`.
 
-```
-The current project structure differs significantly from the ideal [Pattern Name] architecture.
-[Briefly list 1-2 major differences]
+2. **Existing Codebase with Material Discrepancies:**
+   - **Non-interactive mode** (`HANDOFF_MODE=1` / subagent): STOP and return `BLOCKED` with options (do not guess).
+   - **Interactive mode:** Ask the user via `AskUserQuestion`:
+     ```
+     The current project structure differs from the ideal [Pattern Name] architecture.
+     [Briefly list 1-2 major differences]
 
-How should we generate the ARCHITECTURE.md?
-1. Adapt the guidelines to fit the existing application structure (document reality).
-2. Generate the pure, strict architecture guidelines (requires refactoring the application later to match).
-```
-Wait for their decision before proceeding to Step 2.
+     How should we generate ARCHITECTURE.md?
+     1. Adapt guidelines to fit the existing application structure (document reality).
+     2. Generate pure, strict architecture guidelines (quarantine legacy, refactor later).
+     ```
+     Wait for their decision before proceeding to Step 2.
 
 ### Step 2: Generate the Architecture Artifact
 
 Create the parent directory for the resolved architecture path if needed.
 
-Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.md`) with the following structure, **adapted to the project's tech stack and language**:
+Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.md`) with the following structure, **adapted to the project's tech stack, programming language, and resolved artifacts language (`language.artifacts`)**:
 
 ```markdown
-# Architecture: [Pattern Name]
+# [Localized heading: Architecture]: [Pattern Name]
 
-## Overview
+## [Localized heading: Overview]
 [1-2 paragraphs: what this architecture is and why it was chosen for THIS project]
 
-## Decision Rationale
-- **Project type:** [from DESCRIPTION.md]
-- **Tech stack:** [language, framework]
-- **Key factor:** [primary reason for this choice]
+## [Localized heading: Decision Rationale]
+- **[Localized label: Project type]:** [from DESCRIPTION.md]
+- **[Localized label: Tech stack]:** [language, framework]
+- **[Localized label: Key factor]:** [primary reason for this choice]
 
-## Folder Structure
+## [Localized heading: Folder Structure]
 \`\`\`
 [folder structure adapted to the project's tech stack]
 [use actual framework conventions — e.g., Next.js app/ dir, Laravel app/ dir, Go cmd/ dir]
 \`\`\`
 
-## Dependency Rules
+## [Localized heading: Dependency Rules]
 [What depends on what. Inner vs outer layers. Module boundaries.]
 
 - ✅ [allowed dependency direction]
 - ❌ [forbidden dependency direction]
 
-## Layer/Module Communication
+## [Localized heading: Layer/Module Communication]
 [How layers or modules communicate with each other]
 - [pattern 1]
 - [pattern 2]
 
-## Key Principles
+## [Localized heading: Key Principles]
 1. [Principle 1 — adapted to this project]
 2. [Principle 2]
 3. [Principle 3]
 
-[If the user chose Option 2 (strict architecture) in Step 1.5, add the following section:]
-## Legacy vs New Code Policy
-- **New Features:** All new code MUST strictly follow the architecture defined in this document.
-- **Legacy Code Modification:** Do NOT automatically refactor unrelated legacy code to fit this architecture. Touch legacy code only when necessary for bug fixes, when tasked with explicit refactoring, or when adapting it to be consumed by new features.
-- **Interoperability:** When new code must call legacy code, isolate the interaction using adapters, interfaces, or facades so that legacy patterns do not pollute the new architecture.
+[If clean project or starter scaffolding, add:]
+## [Localized heading: Code Organization Policy]
+- **Starter Scaffolding:** Existing entry points/layouts belong to application framing; integrate them organically into the chosen architecture style without rigid naming.
+- **Anti-Junk-Drawer Rule:** Starter files must never accumulate domain entities, business logic, or direct database queries. New business features must reside in their own modules, contexts, or layers.
+- **New Code:** All subsequent development must strictly follow the rules defined in this document.
 
-[If the user chose Option 1 (adapt to reality) in Step 1.5, add the following lighter section:]
-## Code Organization Note
-- **New Features:** All new code should follow the architecture defined in this document where practical.
-- **Existing Code:** Document the current structure as-is. When modifying existing code, prefer following the architectural conventions in this document, but do not force a rewrite of unrelated code.
-- **Interoperability:** When new code must call existing code, prefer clean interfaces but do not refactor purely for structural alignment.
+[If strict architecture chosen (Option 2), add:]
+## [Localized heading: Legacy vs New Code Policy]
+- **New Features:** All new code MUST strictly follow the pure target architecture defined in this document.
+- **Legacy Quarantine:** Existing non-conforming code is quarantined as legacy; do not automatically refactor unrelated legacy code.
+- **Interoperability:** Isolate interactions between new and legacy code using adapters/facades to prevent legacy patterns from leaking into new code.
+- **Opportunistic Migration:** Migrate legacy code incrementally only when a planned task touches that domain.
 
-## Code Examples
+[If adapt to reality chosen (Option 1), add:]
+## [Localized heading: Code Organization Note]
+- **Existing Code:** Documented as-is to reflect current reality without forced rewrites.
+- **New Features:** Follow these architectural conventions and allowed dependency directions where practical.
+- **Boundary Discipline:** Prevent further degradation by adhering strictly to the allowed dependency directions.
+
+## [Localized heading: Code Examples]
 
 ### [Example 1 title]
 \`\`\`[language]
@@ -224,16 +241,19 @@ Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.
 [code example showing dependency rule]
 \`\`\`
 
-## Anti-Patterns
+## [Localized heading: Anti-Patterns]
 - ❌ [What NOT to do in this architecture]
 - ❌ [Common mistake to avoid]
 ```
 
 **Rules for generation:**
+- Generate headings and prose in resolved `language.artifacts`; keep code identifiers, import paths, and technical keywords in English per `language.technical_terms: keep`.
+- For `[Pattern Name]`, use the canonical English display name (e.g. `Explicit Architecture (Vertical Slice By Entity)`), optionally accompanied by localized clarification when `language.artifacts` is non-English.
 - Adapt ALL examples to the project's language and framework (don't use TypeScript examples for a Go project)
 - Use the project's actual conventions (import paths, naming, etc.)
 - Keep it practical — focus on rules that affect day-to-day development
 - Base the generated folder structure on the user's decision in Step 1.5 (either adapted to reality or strict pure architecture). Do not automatically merge them without user consent.
+- For vertical slice architectures, render the slice folder structure according to the chosen action organization style (Feature Subfolders or Unified Multi-Action).
 
 ### Step 3: Update DESCRIPTION.md
 

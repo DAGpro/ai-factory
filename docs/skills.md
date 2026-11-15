@@ -547,10 +547,11 @@ Typical sequence when both are useful:
 
 For the workflow view of where these fit, see [Development Workflow](workflow.md).
 
-### `/aif-architecture [explicit|structured|microservices|layers]`
+### `/aif-architecture [layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo]]`
 Generates architecture guidelines tailored to your project:
 ```
 /aif-architecture           # Analyze project and recommend
+/aif-architecture layers    # Use Layered Architecture
 /aif-architecture explicit-layers # Use Explicit Architecture (Technical Layer)
 /aif-architecture explicit-vertical # Use Explicit Architecture (Vertical Slices By Entity)
 /aif-architecture explicit-flat # Use Explicit Architecture (Flat Vertical Slice - Simplified)
@@ -558,8 +559,11 @@ Generates architecture guidelines tailored to your project:
 /aif-architecture structured-layers # Use Structured Modules (Technical Layer)
 /aif-architecture structured-vertical # Use Structured Modules (Vertical Slices By Entity)
 /aif-architecture structured # Asks the user which folder structure variant to use
+/aif-architecture microservices-single # Use Microservices (Single Service Repository)
+/aif-architecture microservices-monorepo # Use Microservices (Monorepo)
+/aif-architecture microservices # Asks the user which repository structure variant to use
 ```
-*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns for backward compatibility.*
+*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns for backward compatibility. Vertical slice variants prompt for action organization style (Feature Subfolders vs Unified Multi-Action).*
 - Reads the resolved description artifact for project context
 - Recommends architecture pattern based on team size, domain complexity, and tech stack
 - Reads `.ai-factory/config.yaml` for `paths.description`, `paths.architecture`, `language.ui`, and `language.artifacts`
