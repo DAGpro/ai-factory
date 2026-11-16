@@ -38,8 +38,11 @@ All folder structures in this document use consistent placeholder names:
 **Slice types:** Both `[EntityName]` and `[ProcessName]` live as siblings inside `Slices/`. Entity slices group use cases for a single entity. Process slices group orchestration logic that spans multiple entities.
 
 **Slice Action Organization Styles (Feature Subfolders vs Unified Multi-Action):** When using vertical slices, choose one consistent organization style for use cases within slices:
-- **Feature Subfolders (Recommended):** Each use case is grouped into its own dedicated feature subfolder: `Slices/[EntityName]/[FeatureName]/` containing `[FeatureName]Action.{ext}`, `[FeatureName]Dto.{ext}`, and `[FeatureName]Handler.{ext}` (alongside a shared `[EntityName]Repository.{ext}`). Guarantees maximum feature isolation, single responsibility, and prevents flat directory clutter as features multiply.
-- **Unified Multi-Action:** Actions and services are grouped into a single `[EntityName]Controller.{ext}` and `[EntityName]Service.{ext}` per entity. Follows traditional MVC conventions with fewer files.
+- **Style 1: Feature Subfolders (Recommended):** Each use case is grouped into its own dedicated feature subfolder:
+  - In *Flat Vertical Slices* and *Structured Modules (Vertical)*: `Slices/[EntityName]/[FeatureName]/` contains `[FeatureName]Action.{ext}`, `[FeatureName]Handler.{ext}`, and `[FeatureName]Dto.{ext}` (with entity-shared `[EntityName]Repository.{ext}` directly under `[EntityName]/`).
+  - In *Explicit Architecture (Vertical)*: `[FeatureName]/` folders sit inside their respective technical layers: `Application/[FeatureName]/` (`Handler`, `Dto`) and `Presentation/Api/[FeatureName]/` (`Action`).
+  Guarantees maximum feature isolation, single responsibility, and prevents flat directory clutter as features multiply.
+- **Style 2: Unified Multi-Action:** Actions and services are grouped into a single `[EntityName]Controller.{ext}` and `[EntityName]Service.{ext}` per entity. Follows traditional conventions with fewer files and centralized endpoints.
 
 When generating `ARCHITECTURE.md`, the chosen organization style is selected and documented consistently across all slices.
 
@@ -133,16 +136,24 @@ src/
 ├── [ModuleName]/                               # ── FEATURE MODULE ──
 │   ├── Slices/                                 # Slices grouped by entity and process
 │   │   ├── [EntityNameA]/                      # Entity slice (e.g., User)
-│   │   │   ├── [EntityNameA]Controller.{ext}   # Unified: all actions in one controller
-│   │   │   ├── [EntityNameA]Service.{ext}      # Unified: all use cases in one service
+│   │   │   # ── Style 1: Feature Subfolders (Recommended) ──
+│   │   │   ├── [FeatureNameA]/                 # Dedicated folder per use case (e.g. CreateUser)
+│   │   │   │   ├── [FeatureNameA]Action.{ext}  # HTTP endpoint / controller
+│   │   │   │   ├── [FeatureNameA]Handler.{ext} # Use case logic
+│   │   │   │   └── [FeatureNameA]Dto.{ext}     # Request/Response DTO
+│   │   │   # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │   │   # ├── [EntityNameA]Controller.{ext} # Unified: all actions in one controller
+│   │   │   # ├── [EntityNameA]Service.{ext}    # Unified: all use cases in one service
+│   │   │   # ── Shared Data Access ──
 │   │   │   └── [EntityNameA]Repository.{ext}   # Data access for EntityNameA
 │   │   │
 │   │   ├── [EntityNameB]/                      # Entity slice (e.g., Role)
 │   │   │   └── ...
 │   │   │
 │   │   └── [ProcessName]/                      # Process slice — cross-entity orchestration
-│   │       ├── [ProcessName]Controller.{ext}   # Unified: all actions in one controller
-│   │       └── [ProcessName]Service.{ext}      # Unified: orchestration logic
+│   │       ├── [ProcessName]Action.{ext}       # Endpoint / Action
+│   │       ├── [ProcessName]Handler.{ext}      # Orchestration logic
+│   │       └── [ProcessName]Dto.{ext}          # DTO
 │   │
 │   ├── Models/                                 # Rich Domain Models stay shared within the module
 │   │   ├── [EntityNameA].{ext}
@@ -210,10 +221,14 @@ src/
 src/
 ├── [ContextName]/                              # ── BOUNDED CONTEXT ──
 │   ├── Domain/                                 # PURE DOMAIN (zero external deps)
-│   │   ├── [EntityName].{ext}                  # Standalone entities (e.g. User.{ext})
+│   │   ├── [EntityName].{ext}                  # Entities (in Domain/ root or under Entities/)
 │   │   ├── [AggregateName]/                    # Dedicated folder when aggregate has child entities
 │   │   │   ├── [AggregateName].{ext}           # Aggregate root
 │   │   │   └── [ChildEntity].{ext}             # Child entity inside aggregate boundary
+│   │   ├── Services/                           # Domain Services (pure cross-entity business rules, zero I/O)
+│   │   │   └── [ProcessName]PricingService.{ext}
+│   │   ├── ValueObjects/                       # (Optional) Value Objects (e.g. Money, Address)
+│   │   ├── Events/                             # (Optional) Domain Events (e.g. OrderPlaced)
 │   │   ├── Ports/                              # Interfaces only (repositories, gateways)
 │   │   └── Exceptions/                         # Domain-specific exceptions
 │   │
@@ -256,10 +271,13 @@ src/
 src/
 ├── [ContextName]/                              # ── BOUNDED CONTEXT ──
 │   ├── Domain/                                 # PURE DOMAIN (shared across slices)
-│   │   ├── [EntityName].{ext}                  # Standalone entities
+│   │   ├── [EntityName].{ext}                  # Entities (in Domain/ root or under Entities/)
 │   │   ├── [AggregateName]/                    # Dedicated folder when aggregate has child entities
 │   │   │   ├── [AggregateName].{ext}           # Aggregate root
 │   │   │   └── [ChildEntity].{ext}             # Child entity inside aggregate boundary
+│   │   ├── Services/                           # Domain Services (pure cross-entity business rules, zero I/O)
+│   │   ├── ValueObjects/                       # (Optional) Shared Value Objects
+│   │   ├── Events/                             # (Optional) Domain Events
 │   │   ├── Ports/                              # Repository & gateway interfaces
 │   │   └── Exceptions/                         # Domain-specific exceptions
 │   │
@@ -319,22 +337,33 @@ For smaller entities or when striving for maximum locality (cohesion), the inter
 src/
 ├── [ContextName]/                              # ── BOUNDED CONTEXT ──
 │   ├── Domain/                                 # PURE DOMAIN (shared across slices)
-│   │   ├── [EntityName].{ext}                  # Standalone entities
+│   │   ├── [EntityName].{ext}                  # Entities (in Domain/ root or under Entities/)
 │   │   ├── [AggregateName]/                    # Dedicated folder when aggregate has child entities
 │   │   │   ├── [AggregateName].{ext}           # Aggregate root
 │   │   │   └── [ChildEntity].{ext}             # Child entity inside aggregate boundary
+│   │   ├── Services/                           # Domain Services (pure cross-entity business rules, zero I/O)
+│   │   ├── ValueObjects/                       # (Optional) Shared Value Objects
+│   │   ├── Events/                             # (Optional) Domain Events
 │   │   ├── Ports/                              # Repository & gateway interfaces
 │   │   └── Exceptions/                         # Domain-specific exceptions
 │   │
 │   ├── Slices/
-│   │   ├── [EntityName]/                       # Flat entity slice — all files side-by-side
-│   │   │   ├── [EntityName]Controller.{ext}    # Unified: all actions in one controller
-│   │   │   ├── [EntityName]Service.{ext}       # Unified: all use cases in one service
+│   │   ├── [EntityName]/                       # Flat entity slice
+│   │   │   # ── Style 1: Feature Subfolders (Recommended) ──
+│   │   │   ├── [FeatureNameA]/                 # Dedicated folder per use case (e.g. CreateUser)
+│   │   │   │   ├── [FeatureNameA]Action.{ext}  # HTTP endpoint / controller
+│   │   │   │   ├── [FeatureNameA]Handler.{ext} # Use case logic
+│   │   │   │   └── [FeatureNameA]Dto.{ext}     # Request/Response DTO
+│   │   │   # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │   │   # ├── [EntityName]Controller.{ext} # Unified: all actions in one controller
+│   │   │   # ├── [EntityName]Service.{ext}    # Unified: all use cases in one service
+│   │   │   # ── Shared Data Access ──
 │   │   │   └── [EntityName]Repository.{ext}    # Data access
 │   │   │
 │   │   └── [ProcessName]/                      # Flat process slice — cross-entity orchestration
-│   │       ├── [ProcessName]Controller.{ext}   # Unified: all actions in one controller
-│   │       └── [ProcessName]Service.{ext}      # Unified: orchestration logic
+│   │       ├── [ProcessName]Action.{ext}       # Endpoint / Action
+│   │       ├── [ProcessName]Handler.{ext}      # Orchestration logic
+│   │       └── [ProcessName]Dto.{ext}          # DTO
 │   │
 │   └── Infrastructure/                         # Cross-slice adapters
 │
@@ -357,9 +386,10 @@ src/
   - **Context Mapping:** Contexts communicate through strategic DDD relationship patterns like Customer/Supplier or Anti-Corruption Layer (ACL). Note that a Context Map is a strategic view of your system; an ACL is a specific integration pattern used within that map.
 
 2. **Domain Layer Purity & Structure:** The domain layer has ZERO dependencies on frameworks, databases, or external services. Contains Entities, Aggregates, Value Objects, Domain Events, Ports (interfaces), and Domain Exceptions.
-   - **Standalone Entities:** Simple entities live directly in the root of `Domain/` (e.g. `User.{ext}`).
+   - **Entities:** Standalone entities live directly in the root of `Domain/` (or optionally in `Domain/Entities/` when preferred by the project or framework conventions).
    - **Aggregate Folders:** When an entity is an Aggregate Root with child entities or tightly coupled internal types (e.g. `Order` with `OrderItem`), group them in a dedicated aggregate folder: `Domain/[AggregateName]/` (`Order/Order.{ext}`, `Order/OrderItem.{ext}`).
-   - **Ports & Exceptions:** Keep `Ports/` for outbound interfaces and `Exceptions/` for domain business rule errors. Additional subfolders (`Events/`, `ValueObjects/`, `Enums/`) are introduced only as domain complexity demands.
+   - **Domain Services:** Pure business rules spanning multiple entities (with zero I/O) live in `Domain/Services/` (e.g. `PricingService.{ext}`).
+   - **Ports & Exceptions:** Keep `Ports/` for outbound interfaces and `Exceptions/` for domain business rule errors. Additional subfolders (`Events/`, `ValueObjects/`, `Enums/`) are introduced as domain complexity demands.
 
 3. **Ports and Adapters (Hexagonal):** The domain defines interfaces (ports). Infrastructure implements them (adapters). Dependencies point INWARD.
 
@@ -550,6 +580,15 @@ src/                                         src/
 - ❌ **Layer Skipping:** Controllers calling repositories directly, or routes calling services without going through controllers.
 - ❌ **Upward Dependencies:** Services importing controllers, or repositories importing services.
 - ❌ **Shared Mutable State:** Services storing request-scoped state in module-level variables instead of passing data through function parameters.
+
+## Language and Framework Conventions
+
+Adapt generic placeholders to the project's idiomatic stack conventions:
+- **Go:** Use `cmd/` and `internal/` (no `src/`). Group by domain/capability in `snake_case` (e.g. `internal/user/handler.go`). *Anti-pattern:* never name Go packages `controllers`, `services`, `models`, or `utils`.
+- **Python:** Use `snake_case` for all files/folders (`user_service.py`), with root in `src/<pkg>/` or `<pkg>/`.
+- **Java / Kotlin:** Use standard Maven/Gradle layout (`src/main/{java,kotlin}/...`) or multi-module Gradle (`:domain`, `:application`).
+- **C# / .NET:** Split into solution projects (`src/Domain/`, `src/Application/`, `src/Infrastructure/`, `src/WebApi/`).
+- **TypeScript / Node:** Use `src/` with framework routing conventions (e.g. Next.js `app/`, NestJS modules).
 
 ## Code Examples (Language-Agnostic Pseudo-Code)
 

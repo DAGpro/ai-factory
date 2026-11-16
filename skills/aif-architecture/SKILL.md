@@ -111,18 +111,28 @@ Based on project context, evaluate against the decision matrix and recommend an 
   - `explicit-flat` → Explicit Architecture (Flat Vertical Slice - Simplified)
   - `microservices-single` → Microservices (Single Service Repository)
   - `microservices-monorepo` → Microservices (Monorepo)
-- **Without suffix** (ask user to choose variant):
-  - If `structured` is specified without a suffix: ASK the user: "Which folder structure variant do you prefer for Structured Modules? 1. Technical Layer (simpler) or 2. Vertical Slices by Entity (better for large modules)". Wait for their answer before generating the artifact.
-  - If `explicit` is specified without a suffix: ASK the user: "Which folder structure variant do you prefer for Explicit Architecture? 1. Technical Layer or 2. Explicit Architecture (Vertical Slice By Entity) or 3. Explicit Architecture (Flat Vertical Slice - Simplified)". Wait for their answer before generating the artifact.
-  - If `microservices` is specified without a suffix: ASK the user: "Which repository structure do you prefer for Microservices? 1. Single Microservice (dedicated repository) or 2. Multiple Microservices (monorepo with Gateway/Libs)". Wait for their answer before generating the artifact.
+- **Without suffix** (resolve variant):
+  - In non-interactive mode (`HANDOFF_MODE=1` / subagent):
+    - For clean projects or starter scaffolding: use the canonical default (`structured-layers` for `structured`, `explicit-layers` for `explicit`, `microservices-single` for `microservices`), report this assumption, and proceed.
+    - For existing codebases: STOP and return `BLOCKED` with the available variant options (do not guess architecture scope on existing code).
+  - In interactive mode: ASK the user to choose a variant:
+    - If `structured` without suffix: "Which folder structure variant do you prefer for Structured Modules? 1. Technical Layer (simpler, Recommended) or 2. Vertical Slices by Entity (better for large modules)".
+    - If `explicit` without suffix: "Which folder structure variant do you prefer for Explicit Architecture? 1. Technical Layer (simpler, Recommended) or 2. Explicit Architecture (Vertical Slice By Entity) or 3. Explicit Architecture (Flat Vertical Slice - Simplified)".
+    - If `microservices` without suffix: "Which repository structure do you prefer for Microservices? 1. Single Microservice (dedicated repository, Recommended) or 2. Multiple Microservices (monorepo with Gateway/Libs)".
+    Wait for their answer before generating the artifact.
 - **For Vertical Slices (action organization choice):**
-  - When a vertical slice variant is chosen (`structured-vertical`, `explicit-vertical`, `explicit-flat`), ASK the user: "Which action organization style do you prefer inside vertical slices? 1. Feature Subfolders (Recommended) — dedicated folder `[EntityName]/[FeatureName]/` with Action, DTO, Handler (best for isolation) or 2. Unified Multi-Action — single `[EntityName]Controller` and `[EntityName]Service` per entity". Wait for their answer before generating the artifact.
+  - When any vertical slice variant is chosen (`structured-vertical`, `explicit-vertical`, `explicit-flat`, or legacy `vertical`):
+    - In non-interactive mode (`HANDOFF_MODE=1` / subagent): Default to **Feature Subfolders** and report this assumption.
+    - In interactive mode: ASK the user: "Which action organization style do you prefer inside vertical slices? 1. Feature Subfolders (Recommended) — dedicated folder `[EntityName]/[FeatureName]/` with Action, DTO, Handler (best for isolation) or 2. Unified Multi-Action — single `[EntityName]Controller` and `[EntityName]Service` per entity". Wait for their answer before generating the artifact.
 - Use the resolved architecture directly, skip the recommendation step and proceed to Step 1.5
 
 **If no specific architecture requested:**
 - Evaluate the project against the decision matrix (see `references/architecture.md`)
 - Consider: team size, domain complexity, scale requirements, tech stack
-- Present recommendation via `AskUserQuestion`:
+- In non-interactive mode (`HANDOFF_MODE=1` / subagent):
+  - For clean projects or starter scaffolding: select the recommended pattern from the decision matrix evaluation, report the assumption and rationale, and proceed directly to Step 1.5.
+  - For existing codebases: STOP and return `BLOCKED` with the recommendation and options.
+- In interactive mode: Present recommendation via `AskUserQuestion`:
 
 ```
 Based on your project context:
@@ -151,25 +161,28 @@ Architecture options:
 
 ### Step 1.5: Codebase Alignment Check
 
-**CRITICAL:** Before generating the document, inspect existing application directories (using `Glob`):
+**CRITICAL:** Inspect existing application directories using **`Glob` only** (e.g. `*`, `src/*`, `src/*/*`, `app/*`).
+- Do NOT run shell commands (`find`, `tree`, `ls`, `dir`) — arbitrary Bash execution is prohibited by `allowed-tools: Bash(mkdir *)`.
 - Distinguish technical layers (role-named folders with homogeneous files across entities: `controllers/`, `models/`) from feature modules (domain-named folders grouping cohesive feature logic: `users/`, `billing/`) and bootstrap framing files.
 
 1. **Clean Project or Starter Scaffolding:**
    - If empty or containing only bootstrap framing: proceed directly to Step 2 without asking.
    - In Step 2, generate `## Code Organization Policy`.
 
-2. **Existing Codebase with Material Discrepancies:**
-   - **Non-interactive mode** (`HANDOFF_MODE=1` / subagent): STOP and return `BLOCKED` with options (do not guess).
-   - **Interactive mode:** Ask the user via `AskUserQuestion`:
-     ```
-     The current project structure differs from the ideal [Pattern Name] architecture.
-     [Briefly list 1-2 major differences]
+2. **Existing Codebase (any existing code):**
+   - **Non-interactive mode** (`HANDOFF_MODE=1` / subagent): STOP and return `BLOCKED` with codebase status and options (an existing codebase always requires user alignment; never assume architecture decisions in background mode).
+   - **Interactive mode:**
+     - If the existing structure has discrepancies with the chosen architecture: Ask the user via `AskUserQuestion`:
+       ```
+       The current project structure differs from the ideal [Pattern Name] architecture.
+       [Briefly list 1-2 major differences]
 
-     How should we generate ARCHITECTURE.md?
-     1. Adapt guidelines to fit the existing application structure (document reality).
-     2. Generate pure, strict architecture guidelines (quarantine legacy, refactor later).
-     ```
-     Wait for their decision before proceeding to Step 2.
+       How should we generate ARCHITECTURE.md?
+       1. Adapt guidelines to fit the existing application structure (document reality).
+       2. Generate pure, strict architecture guidelines (quarantine legacy, refactor later).
+       ```
+       Wait for their decision before proceeding to Step 2.
+     - If the existing structure already conforms to the chosen architecture: proceed directly to Step 2 without asking or adding starter/legacy quarantine policies.
 
 ### Step 2: Generate the Architecture Artifact
 
@@ -212,15 +225,15 @@ Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.
 
 [If clean project or starter scaffolding, add:]
 ## [Localized heading: Code Organization Policy]
-- **Starter Scaffolding:** Existing entry points/layouts belong to application framing; integrate them organically into the chosen architecture style without rigid naming.
-- **Anti-Junk-Drawer Rule:** Starter files must never accumulate domain entities, business logic, or direct database queries. New business features must reside in their own modules, contexts, or layers.
+- **Starter Scaffolding:** Existing entry points/layouts belong to application framing; integrate them organically into presentation/entry adapters without rigid naming.
+- **Anti-Junk-Drawer Rule:** Starter files, page components, and framework route handlers must never accumulate domain entities, business logic, or direct database queries. New business features must reside in their own modules, contexts, or slices.
 - **New Code:** All subsequent development must strictly follow the rules defined in this document.
 
 [If strict architecture chosen (Option 2), add:]
 ## [Localized heading: Legacy vs New Code Policy]
 - **New Features:** All new code MUST strictly follow the pure target architecture defined in this document.
 - **Legacy Quarantine:** Existing non-conforming code is quarantined as legacy; do not automatically refactor unrelated legacy code.
-- **Interoperability:** Isolate interactions between new and legacy code using adapters/facades to prevent legacy patterns from leaking into new code.
+- **Anti-Corruption Layer (ACL):** Isolate interactions between new and legacy code using adapters under `Infrastructure/Adapters/Legacy/` (or module infrastructure). Legacy models or queries must NEVER leak into the Domain layer.
 - **Opportunistic Migration:** Migrate legacy code incrementally only when a planned task touches that domain.
 
 [If adapt to reality chosen (Option 1), add:]
@@ -253,7 +266,10 @@ Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.
 - Use the project's actual conventions (import paths, naming, etc.)
 - Keep it practical — focus on rules that affect day-to-day development
 - Base the generated folder structure on the user's decision in Step 1.5 (either adapted to reality or strict pure architecture). Do not automatically merge them without user consent.
-- For vertical slice architectures, render the slice folder structure according to the chosen action organization style (Feature Subfolders or Unified Multi-Action).
+- For vertical slice architectures, render the slice folder structure according to the chosen action organization style:
+  - If **Feature Subfolders**: render dedicated `[FeatureName]/` subfolders containing Action, Handler, and DTO files (either directly under the entity slice in flat/structured variants, or under `Application/` and `Presentation/` in explicit-vertical).
+  - If **Unified Multi-Action**: render unified `[EntityName]Controller` and `[EntityName]Service` files per entity.
+- In the Domain layer: place entities directly in `Domain/` (or under `Domain/Entities/` per stack conventions), or in `Domain/[AggregateName]/` for aggregates with child entities. Pure cross-entity business rules belong in `Domain/Services/`, and outbound interfaces belong in `Domain/Ports/`.
 
 ### Step 3: Update DESCRIPTION.md
 

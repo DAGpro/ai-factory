@@ -563,7 +563,7 @@ Generates architecture guidelines tailored to your project:
 /aif-architecture microservices-monorepo # Use Microservices (Monorepo)
 /aif-architecture microservices # Asks the user which repository structure variant to use
 ```
-*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns for backward compatibility. Vertical slice variants prompt for action organization style (Feature Subfolders vs Unified Multi-Action).*
+*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns for backward compatibility. Vertical slice variants prompt for action organization style (Feature Subfolders vs Unified Multi-Action; defaults to Feature Subfolders in non-interactive mode).*
 - Reads the resolved description artifact for project context
 - Recommends architecture pattern based on team size, domain complexity, and tech stack
 - Reads `.ai-factory/config.yaml` for `paths.description`, `paths.architecture`, `language.ui`, and `language.artifacts`
