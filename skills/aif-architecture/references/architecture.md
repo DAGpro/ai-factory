@@ -4,23 +4,23 @@ Reference material for architecture evaluation and generation. This content info
 
 ## Decision Matrix
 
-| Factor                 | Layered | Structured Modules | Explicit Architecture | Explicit Architecture (Vertical Slice) | Microservices  |
-|------------------------|---------|--------------------|-----------------------|----------------------------------------|----------------|
-| Team size              | 1-5     | 3-10               | 5-30                  | 5-30                                   | 20+            |
-| Domain complexity      | Low     | Medium             | High                  | High                                   | High           |
-| Scale requirements     | Low     | Low-Moderate       | Moderate-High         | Moderate-High                          | Very High      |
-| Feature independence   | Low     | Medium             | Medium                | High                                   | Very High      |
-| Module boundaries      | None    | Soft               | Hard                  | Hard                                   | Hard (network) |
-| Domain purity          | ❌       | Encouraged         | Enforced              | Enforced                               | Varies         |
-| Initial velocity       | ✅ Fast  | ✅ Fast             | Medium                | Medium                                 | ❌ Slow         |
-| Operational complexity | ✅ Low   | ✅ Low              | Medium                | Medium                                 | ❌ High         |
-| Testing complexity     | Medium  | Medium             | ✅ Low (ports)         | ✅ Low (ports)                          | Medium-High¹   |
-| Learning curve         | ✅ Low   | Low-Medium         | Medium-High           | Medium-High                            | High           |
-| Deployment model       | Single  | Single             | Single                | Single                                 | Multi-service  |
+| Factor                 | Layered | Structured Modules | Explicit Architecture | Explicit Architecture (Vertical Slice By Entity) | Microservices  |
+|------------------------|---------|--------------------|-----------------------|--------------------------------------------------|----------------|
+| Team size              | 1-5     | 3-10               | 5-30                  | 5-30                                             | 20+            |
+| Domain complexity      | Low     | Medium             | High                  | High                                             | High           |
+| Scale requirements     | Low     | Low-Moderate       | Moderate-High         | Moderate-High                                    | Very High      |
+| Feature independence   | Low     | Medium             | Medium                | High                                             | Very High      |
+| Module boundaries      | None    | Soft               | Hard                  | Hard                                             | Hard (network) |
+| Domain purity          | ❌       | Encouraged         | Enforced              | Enforced                                         | Varies         |
+| Initial velocity       | ✅ Fast  | ✅ Fast             | Medium                | Medium                                           | ❌ Slow         |
+| Operational complexity | ✅ Low   | ✅ Low              | Medium                | Medium                                           | ❌ High         |
+| Testing complexity     | Medium  | Medium             | ✅ Low (ports)         | ✅ Low (ports)                                    | Medium-High¹   |
+| Learning curve         | ✅ Low   | Low-Medium         | Medium-High           | Medium-High                                      | High           |
+| Deployment model       | Single  | Single             | Single                | Single                                           | Multi-service  |
 
 ¹ Unit tests are easy per service, but integration/contract tests across services add significant complexity.
 
-**Note on subvariants:** Each pattern offers multiple folder organization variants (e.g., *by technical layer*, *by vertical slice*). The matrix evaluates the architectural pattern — organization variants within the same pattern generally share the same scores because they differ in internal folder layout, not in architectural characteristics. When a variant affects feature independence (e.g., Explicit Architecture (Vertical Slices By Entity) scores higher than with Technical Layers), the matrix uses a separate column for that variant rather than showing ranges. The organization variant is chosen separately based on module/context size and feature independence needs.
+**Note on subvariants:** Each pattern offers multiple folder organization variants (e.g., *by technical layer*, *by vertical slice*). Organization variants within the same pattern generally share the same scores. The column `Explicit Architecture (Vertical Slice By Entity)` also represents `Explicit Architecture (Flat Vertical Slice - Simplified)` in terms of architectural properties. Similarly, `Structured Modules (Vertical Slices By Entity)` shares characteristics with Structured Modules but offers higher feature independence. The organization variant is chosen separately based on module/context size and feature independence needs.
 
 ## Terminology
 
@@ -40,7 +40,7 @@ All folder structures in this document use consistent placeholder names:
 **Slice Action Organization Styles (Feature Subfolders vs Unified Multi-Action):** When using vertical slices, choose one consistent organization style for use cases within slices:
 - **Style 1: Feature Subfolders (Recommended):** Each use case is grouped into its own dedicated feature subfolder:
   - In *Flat Vertical Slices* and *Structured Modules (Vertical)*: `Slices/[EntityName]/[FeatureName]/` contains `[FeatureName]Action.{ext}`, `[FeatureName]Handler.{ext}`, and `[FeatureName]Dto.{ext}` (with entity-shared `[EntityName]Repository.{ext}` directly under `[EntityName]/`).
-  - In *Explicit Architecture (Vertical)*: `[FeatureName]/` folders sit inside their respective technical layers: `Application/[FeatureName]/` (`Handler`, `Dto`) and `Presentation/Api/[FeatureName]/` (`Action`).
+  - In *Explicit Architecture (Vertical)*: `[FeatureName]/` folders sit inside their technical layers: `Application/[FeatureName]/` (`Handler`, `Dto`) and `Presentation/Api/[FeatureName]/` (`Action`).
   Guarantees maximum feature isolation, single responsibility, and prevents flat directory clutter as features multiply.
 - **Style 2: Unified Multi-Action:** Actions and services are grouped into a single `[EntityName]Controller.{ext}` and `[EntityName]Service.{ext}` per entity. Follows traditional conventions with fewer files and centralized endpoints.
 
@@ -154,6 +154,9 @@ src/
 │   │       ├── [ProcessName]Action.{ext}       # Endpoint / Action
 │   │       ├── [ProcessName]Handler.{ext}      # Orchestration logic
 │   │       └── [ProcessName]Dto.{ext}          # DTO
+│   │       # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │       # ├── [ProcessName]Controller.{ext} # Unified: all actions in one controller
+│   │       # └── [ProcessName]Service.{ext}    # Unified: orchestration logic
 │   │
 │   ├── Models/                                 # Rich Domain Models stay shared within the module
 │   │   ├── [EntityNameA].{ext}
@@ -169,7 +172,7 @@ src/
 ```
 
 **Dependency Rules (Strict Direction):**
-- **Strict Downward Flow:** Dependencies must point strictly in one direction: `Controllers → Services → Repositories`. Inner layers (e.g., Repositories, Models) MUST NEVER depend on outer layers (e.g., Controllers).
+- **Strict Downward Flow:** Dependencies must point strictly in one direction: `Controllers → Services → Repositories`. Lower layers (e.g., Repositories) and domain models (`Models/`) MUST NEVER depend on higher layers (e.g., Controllers).
 - **No Layer Skipping:** Controllers must not bypass the Service layer to call Repositories directly.
 - **Module Isolation:** Modules depend on root `Infrastructure/` for shared types, utilities, and middleware, but NOT on each other's internals. Cross-module dependencies must only use defined public APIs.
 
@@ -298,15 +301,20 @@ src/
 │   │   │   └── Presentation/                   # Delivery mechanism for this entity
 │   │   │       ├── Api/
 │   │   │       │   # ── Style 1: Feature Subfolders (Recommended) ──
-│   │   │       │   ├── [FeatureNameA]/         # Dedicated folder or action per feature
-│   │   │       │   │   └── [FeatureNameA]Action.{ext}
+│   │   │       │   ├── [Channel]/              # Optional: channel folder (Admin/, Public/) when the entity serves multiple audiences
+│   │   │       │   │   └── [FeatureNameA]/     # Dedicated folder per feature
+│   │   │       │   │       └── [FeatureNameA]Action.{ext}
 │   │   │       │   # ── Style 2: Unified Multi-Action (Alternative) ──
 │   │   │       │   # ├── Admin/
 │   │   │       │   # │   └── [EntityName]Controller.{ext}
 │   │   │       │   # └── Public/
 │   │   │       │   #     └── [EntityName]Controller.{ext}
-│   │   │       ├── Web/                        # (Optional) HTML views & controllers
-│   │   │       │   └── [EntityName]Controller.{ext}
+│   │   │       ├── Web/                        # (Optional) HTML views & controllers — follows the chosen style
+│   │   │       │   # ── Style 1: Feature Subfolders (Recommended) ──
+│   │   │       │   ├── [FeatureNameA]/         # Per-feature Web controllers
+│   │   │       │   │   └── [FeatureNameA]Controller.{ext}
+│   │   │       │   # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │   │       │   # └── [EntityName]Controller.{ext}
 │   │   │       └── Cli/                        # Console commands
 │   │   │           └── [EntityName]Command.{ext}
 │   │   │
@@ -314,10 +322,14 @@ src/
 │   │       ├── Application/                    # Orchestration logic
 │   │       │   ├── [ProcessName]Handler.{ext}  # e.g. PlaceOrderHandler / PlaceOrderService
 │   │       │   └── [ProcessName]Dto.{ext}      # DTO
+│   │       │   # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │       │   # └── [ProcessName]Service.{ext} # e.g. PlaceOrderService
 │   │       ├── Infrastructure/                 # Adapters for this process
 │   │       └── Presentation/                   # Delivery mechanism for this process
 │   │           ├── Api/
-│   │           │   └── [ProcessName]Action.{ext}
+│   │           │   └── [ProcessName]Action.{ext}   # Style 1: the process slice itself is the feature unit — no extra nesting
+│   │           │   # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │           │   # └── [ProcessName]Controller.{ext}
 │   │           └── Cli/
 │   │               └── [ProcessName]Command.{ext}
 │   │
@@ -335,7 +347,7 @@ src/
 
 ### Folder Structure — Explicit Architecture (Flat Vertical Slice - Simplified)
 
-For smaller entities or when striving for maximum locality (cohesion), the internal `Application/`, `Infrastructure/`, and `Presentation/` folders can be omitted. A "flat slice" places all related files side-by-side within the slice folder.
+For smaller entities or when striving for maximum locality (cohesion), the formal `Application/`, `Infrastructure/`, and `Presentation/` layer folders are omitted. Slices live directly under `Slices/[EntityName]/` (either flat side-by-side when using Unified Multi-Action, or grouped into `[FeatureName]/` subfolders when using Feature Subfolders).
 
 ```text
 src/
@@ -368,6 +380,9 @@ src/
 │   │       ├── [ProcessName]Action.{ext}       # Endpoint / Action
 │   │       ├── [ProcessName]Handler.{ext}      # Orchestration logic
 │   │       └── [ProcessName]Dto.{ext}          # DTO
+│   │       # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │       # ├── [ProcessName]Controller.{ext} # Unified: all actions in one controller
+│   │       # └── [ProcessName]Service.{ext}    # Unified: orchestration logic
 │   │
 │   └── Infrastructure/                         # Cross-slice adapters
 │
@@ -381,7 +396,9 @@ src/
     └── External/                               # External API adapters
 ```
 
-**Naming convention:** If an entity is accessible via multiple interfaces, add a prefix to distinguish: `[Interface][EntityName]Controller.{ext}` (e.g. `AdminUserController`, `PublicUserController`).
+**Naming convention:** If an entity is accessible via multiple delivery channels/entry points, distinguish them explicitly:
+- **With feature subfolders (Style 1):** add a channel folder above the feature folders: `Api/[Channel]/[FeatureName]/[FeatureName]Action.{ext}` (e.g. `Api/Admin/CreateUser/CreateUserAction.{ext}`); omit it for single-channel slices.
+- **With unified controllers in flat slices (Style 2):** prefix the file with the channel: `[Channel][EntityName]Controller.{ext}` (e.g. `AdminUserController`, `PublicUserController`). In explicit-vertical, unified controllers live under channel folders (`Api/Admin/`, `Api/Public/`) instead.
 
 ### Core Principles
 
@@ -545,16 +562,14 @@ src/
 
 ```text
 Routes → Controllers → Services → Repositories → Database
-    ↓                                           ↑
-Middleware (cross-cutting)              Models (shared data structures)
-    ↓                                           ↑
-Utils (cross-cutting)                  Config (cross-cutting)
+
+Models, Middleware, Config, and Utils are consumed or invoked alongside this flow — they hold no layer position in the dependency chain.
 ```
 
 - Routes → Controllers → Services → Repositories → Database
 - No skipping layers (controllers should not call repositories directly)
 - Models are shared data structures (DTOs, entities) consumed by Services and Repositories — not a separate layer
-- Middleware and Utils are cross-cutting concerns invoked alongside the main request flow, not a third column in the dependency chain
+- Middleware, Utils, and Config provide cross-cutting concerns (auth, logging, settings) without domain business logic
 
 ### Migration Path to Structured Modules
 
