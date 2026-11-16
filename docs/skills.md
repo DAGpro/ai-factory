@@ -547,23 +547,26 @@ Typical sequence when both are useful:
 
 For the workflow view of where these fit, see [Development Workflow](workflow.md).
 
-### `/aif-architecture [layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo]]`
+### `/aif-architecture [layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo]] [--style=subfolders|--style=unified] [--strict|--adapt]`
 Generates architecture guidelines tailored to your project:
 ```
 /aif-architecture           # Analyze project and recommend
 /aif-architecture layers    # Use Layered Architecture
 /aif-architecture explicit-layers # Use Explicit Architecture (Technical Layer)
 /aif-architecture explicit-vertical # Use Explicit Architecture (Vertical Slices By Entity)
+/aif-architecture explicit-vertical --style=subfolders # Vertical Slices with Feature Subfolders
+/aif-architecture explicit-vertical --style=unified    # Vertical Slices with Unified Multi-Action
 /aif-architecture explicit-flat # Use Explicit Architecture (Flat Vertical Slice - Simplified)
-/aif-architecture explicit  # Asks the user which folder structure variant to use (3 options)
+/aif-architecture explicit-layers --strict # Strict architecture (quarantine legacy) on existing project
 /aif-architecture structured-layers # Use Structured Modules (Technical Layer)
 /aif-architecture structured-vertical # Use Structured Modules (Vertical Slices By Entity)
+/aif-architecture structured-vertical --adapt # Adapt architecture to existing project structure
 /aif-architecture structured # Asks the user which folder structure variant to use
 /aif-architecture microservices-single # Use Microservices (Single Service Repository)
 /aif-architecture microservices-monorepo # Use Microservices (Monorepo)
 /aif-architecture microservices # Asks the user which repository structure variant to use
 ```
-*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns for backward compatibility. Vertical slice variants prompt for action organization style (Feature Subfolders vs Unified Multi-Action; defaults to Feature Subfolders in non-interactive mode).*
+*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns for backward compatibility. Vertical slice variants prompt for action organization style (Feature Subfolders vs Unified Multi-Action; can be specified via `--style=subfolders|--style=unified`, defaults to Feature Subfolders in non-interactive mode). Discrepancy policy on existing codebases can be pre-selected via `--strict` or `--adapt`.*
 - Reads the resolved description artifact for project context
 - Recommends architecture pattern based on team size, domain complexity, and tech stack
 - Reads `.ai-factory/config.yaml` for `paths.description`, `paths.architecture`, `language.ui`, and `language.artifacts`

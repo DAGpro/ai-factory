@@ -1,7 +1,7 @@
 ---
 name: aif-architecture
 description: Generate architecture guidelines for the project. Analyzes tech stack from DESCRIPTION.md, recommends an architecture pattern, and creates .ai-factory/ARCHITECTURE.md. Use when setting up project architecture, asking "which architecture", or after /aif setup.
-argument-hint: "[layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo]]"
+argument-hint: "[layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo]] [--style=subfolders|--style=unified] [--strict|--adapt]"
 allowed-tools: Read Write Glob Grep Bash(mkdir *) AskUserQuestion Questions
 disable-model-invocation: false
 ---
@@ -122,8 +122,12 @@ Based on project context, evaluate against the decision matrix and recommend an 
     Wait for their answer before generating the artifact.
 - **For Vertical Slices (action organization choice):**
   - When any vertical slice variant is chosen (`structured-vertical`, `explicit-vertical`, `explicit-flat`, or legacy `vertical`):
-    - In non-interactive mode (`HANDOFF_MODE=1` / subagent): Default to **Feature Subfolders** and report this assumption.
-    - In interactive mode: ASK the user: "Which action organization style do you prefer inside vertical slices? 1. Feature Subfolders (Recommended) — dedicated folder `[EntityName]/[FeatureName]/` with Action, DTO, Handler (best for isolation) or 2. Unified Multi-Action — single `[EntityName]Controller` and `[EntityName]Service` per entity". Wait for their answer before generating the artifact.
+    - **If action organization style is specified in `$ARGUMENTS`:**
+      - `--style=subfolders` (or `--subfolders`) → use **Feature Subfolders** directly without asking.
+      - `--style=unified` (or `--unified`) → use **Unified Multi-Action** directly without asking.
+    - **If no style option specified:**
+      - In non-interactive mode (`HANDOFF_MODE=1` / subagent): Default to **Feature Subfolders** and report this assumption.
+      - In interactive mode: ASK the user: "Which action organization style do you prefer inside vertical slices? 1. Feature Subfolders (Recommended) — dedicated folder `[EntityName]/[FeatureName]/` with Action, DTO, Handler (best for isolation) or 2. Unified Multi-Action — single `[EntityName]Controller` and `[EntityName]Service` per entity". Wait for their answer before generating the artifact.
 - Use the resolved architecture directly, skip the recommendation step and proceed to Step 1.5
 
 **If no specific architecture requested:**
@@ -170,19 +174,24 @@ Architecture options:
    - In Step 2, generate `## Code Organization Policy`.
 
 2. **Existing Codebase (any existing code):**
-   - **Non-interactive mode** (`HANDOFF_MODE=1` / subagent): STOP and return `BLOCKED` with codebase status and options (an existing codebase always requires user alignment; never assume architecture decisions in background mode).
-   - **Interactive mode:**
-     - If the existing structure has discrepancies with the chosen architecture: Ask the user via `AskUserQuestion`:
-       ```
-       The current project structure differs from the ideal [Pattern Name] architecture.
-       [Briefly list 1-2 major differences]
+   - **If the existing structure already conforms to the chosen architecture:**
+     Proceed directly to Step 2 without asking or adding starter/legacy quarantine policies (both in interactive and non-interactive mode).
+   - **If the existing structure has discrepancies with the chosen architecture:**
+     - **If policy option is specified in `$ARGUMENTS`:**
+       - `--strict` (or `strict`) → choose Option 2: Pure strict architecture guidelines (quarantine legacy under `Infrastructure/Adapters/Legacy/`, refactor later). Proceed directly to Step 2.
+       - `--adapt` (or `adapt`) → choose Option 1: Adapt guidelines to fit existing application structure (document reality). Proceed directly to Step 2.
+     - **If no policy option is specified:**
+       - In non-interactive mode (`HANDOFF_MODE=1` / subagent): STOP and return `BLOCKED` with codebase status, discrepancies, and options (pass `--strict` or `--adapt` to resolve in non-interactive mode).
+       - In interactive mode: Ask the user via `AskUserQuestion`:
+         ```
+         The current project structure differs from the ideal [Pattern Name] architecture.
+         [Briefly list 1-2 major differences]
 
-       How should we generate ARCHITECTURE.md?
-       1. Adapt guidelines to fit the existing application structure (document reality).
-       2. Generate pure, strict architecture guidelines (quarantine legacy, refactor later).
-       ```
-       Wait for their decision before proceeding to Step 2.
-     - If the existing structure already conforms to the chosen architecture: proceed directly to Step 2 without asking or adding starter/legacy quarantine policies.
+         How should we generate ARCHITECTURE.md?
+         1. Adapt guidelines to fit the existing application structure (document reality).
+         2. Generate pure, strict architecture guidelines (quarantine legacy, refactor later).
+         ```
+         Wait for their decision before proceeding to Step 2.
 
 ### Step 2: Generate the Architecture Artifact
 

@@ -284,36 +284,40 @@ src/
 │   ├── Slices/
 │   │   ├── [EntityName]/                       # Entity slice — use cases for this entity only
 │   │   │   ├── Application/                    # Entity-scoped use cases
-│   │   │   │   ├── [EntityName]Service.{ext}   # Unified: all use cases in one file
-│   │   │   │   └── [FeatureName]Dto.{ext}      # e.g. CreateUserDto, UpdateProfileDto
+│   │   │   │   # ── Style 1: Feature Subfolders (Recommended) ──
+│   │   │   │   ├── [FeatureNameA]/             # Dedicated folder per use case (e.g. CreateUser)
+│   │   │   │   │   ├── [FeatureNameA]Handler.{ext} # Use case logic
+│   │   │   │   │   └── [FeatureNameA]Dto.{ext}     # Request/Response DTO
+│   │   │   │   # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │   │   │   # ├── [EntityName]Service.{ext} # Unified: all use cases in one file
+│   │   │   │   # └── [FeatureName]Dto.{ext}    # DTO
+│   │   │   │
 │   │   │   ├── Infrastructure/                 # Adapters for this entity
-│   │   │   │   └── [EntityName]Repository.{ext}
+│   │   │   │   └── [EntityName]Repository.{ext} # Shared data access for EntityName
+│   │   │   │
 │   │   │   └── Presentation/                   # Delivery mechanism for this entity
 │   │   │       ├── Api/
-│   │   │       │   ├── Admin/
-│   │   │       │   │   └── [EntityName]Controller.{ext}   # Unified: all actions in one controller
-│   │   │       │   └── Public/
-│   │   │       │       └── [EntityName]Controller.{ext}
-│   │   │       ├── Web/
-│   │   │       │   ├── Admin/
-│   │   │       │   │   └── [EntityName]Controller.{ext}
-│   │   │       │   └── Public/
-│   │   │       │       └── [EntityName]Controller.{ext}
-│   │   │       └── Cli/
+│   │   │       │   # ── Style 1: Feature Subfolders (Recommended) ──
+│   │   │       │   ├── [FeatureNameA]/         # Dedicated folder or action per feature
+│   │   │       │   │   └── [FeatureNameA]Action.{ext}
+│   │   │       │   # ── Style 2: Unified Multi-Action (Alternative) ──
+│   │   │       │   # ├── Admin/
+│   │   │       │   # │   └── [EntityName]Controller.{ext}
+│   │   │       │   # └── Public/
+│   │   │       │   #     └── [EntityName]Controller.{ext}
+│   │   │       ├── Web/                        # (Optional) HTML views & controllers
+│   │   │       │   └── [EntityName]Controller.{ext}
+│   │   │       └── Cli/                        # Console commands
 │   │   │           └── [EntityName]Command.{ext}
 │   │   │
 │   │   └── [ProcessName]/                      # Process slice — cross-entity orchestration
 │   │       ├── Application/                    # Orchestration logic
-│   │       │   └── [ProcessName]Service.{ext}  # e.g. PlaceOrderService
+│   │       │   ├── [ProcessName]Handler.{ext}  # e.g. PlaceOrderHandler / PlaceOrderService
+│   │       │   └── [ProcessName]Dto.{ext}      # DTO
 │   │       ├── Infrastructure/                 # Adapters for this process
 │   │       └── Presentation/                   # Delivery mechanism for this process
 │   │           ├── Api/
-│   │           │   ├── Admin/
-│   │           │   │   └── [ProcessName]Controller.{ext}
-│   │           │   └── Public/
-│   │           │       └── [ProcessName]Controller.{ext}
-│   │           ├── Web/
-│   │           │   └── [ProcessName]Controller.{ext}
+│   │           │   └── [ProcessName]Action.{ext}
 │   │           └── Cli/
 │   │               └── [ProcessName]Command.{ext}
 │   │
