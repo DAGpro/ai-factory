@@ -547,7 +547,7 @@ Typical sequence when both are useful:
 
 For the workflow view of where these fit, see [Development Workflow](workflow.md).
 
-### `/aif-architecture [layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo]] [--style=subfolders|unified] [--policy=adapt|strict]`
+### `/aif-architecture [layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo] | clean | ddd | monolith | vertical] [--style=subfolders|unified] [--policy=adapt|strict] [--existing=overwrite|merge|skip]`
 Generates architecture guidelines tailored to your project:
 ```
 /aif-architecture           # Analyze project and recommend
@@ -565,8 +565,10 @@ Generates architecture guidelines tailored to your project:
 /aif-architecture microservices-single # Use Microservices (Single Service Repository)
 /aif-architecture microservices-monorepo # Use Microservices (Monorepo)
 /aif-architecture microservices # Asks the user which repository structure variant to use
+/aif-architecture explicit-layers --existing=merge # Rerun: regenerate template sections, keep custom ones
+/aif-architecture structured --policy=adapt # Pattern + adapt policy; variant and style detected from the existing code
 ```
-*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns. Vertical slice variants prompt for the action organization style (`--style=subfolders|unified`; Feature Subfolders by default in non-interactive mode), and the alignment policy on existing codebases is pre-selected via `--policy=adapt|strict` — each flag takes one value.*
+*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns. Every pattern except Layered resolves an action organization style (`--style=subfolders|unified`: Feature Subfolders or Unified Multi-Action; vertical slice variants default to Feature Subfolders, technical-layer variants and Microservices default to Unified Multi-Action), and the alignment policy on existing codebases is pre-selected via `--policy=adapt|strict` — each flag takes one value. On existing codebases the survey detects the de-facto structural variant and action style when the evidence is unambiguous and confirms them (non-interactive runs report the detection as an assumption; under strict over discrepancies or ambiguous evidence the variant is chosen explicitly); unresolved material decisions are returned as one `BLOCKED` payload. A rerun over an existing artifact resolves `--existing=overwrite|merge|skip`; merge regenerates the template sections and preserves custom sections, reporting possible duplicates after merging.*
 - Reads the resolved description artifact for project context
 - Recommends architecture pattern based on team size, domain complexity, and tech stack
 - Reads `.ai-factory/config.yaml` for `paths.description`, `paths.architecture`, `language.ui`, and `language.artifacts`

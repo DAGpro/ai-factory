@@ -1365,14 +1365,14 @@ fi
 
 if printf '%s\n' "$AIF_ARCH_AGENTS_SECTION" | grep -Fq 'resolved `language.artifacts`' \
    && printf '%s\n' "$AIF_ARCH_AGENTS_SECTION" | grep -Fq '| [resolved-architecture-path] | [Localized architecture artifact description in resolved artifacts language] |' \
-   && printf '%s\n' "$AIF_ARCH_AGENTS_SECTION" | grep -Fq 'Only add if the resolved architecture path is not already present.'; then
+   && printf '%s\n' "$AIF_ARCH_AGENTS_SECTION" | grep -Fq 'If a row already points to the resolved path'; then
     pass "/aif-architecture keeps AGENTS companion update path-aware and localized"
 else
     fail "/aif-architecture AGENTS companion update contract missing"
 fi
 
 if printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq 'resolved `language.ui`' \
-   && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized pattern label in `language.ui`]: [chosen pattern]' \
+   && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized pattern label in `language.ui`]: [canonical pattern-variant name]' \
    && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized file label in `language.ui`]: [resolved architecture path]' \
    && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized success heading in `language.ui`]' \
    && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized closing sentence in `language.ui` about workflow skills following these architecture guidelines.]'; then

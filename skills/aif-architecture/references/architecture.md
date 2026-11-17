@@ -34,7 +34,7 @@ All folder structures in this document use consistent placeholder names:
 | `[ModuleName]` | A feature module grouping related entities and processes (Structured Modules) | `Auth`, `Catalog`, `Payments` | Top-level module folder |
 | `[ContextName]` | A bounded context with its own ubiquitous language (Explicit Architecture) | `Identity`, `Ordering`, `Inventory` | Top-level context folder |
 | `[ServiceName]` | An independently deployable microservice | `OrderService`, `PaymentGateway` | Microservice root folder |
-| `[Channel]` | A delivery channel/audience segment distinguishing access to the same entity | `Admin`, `Public` | Channel folders in delivery folders (`Api/`, `Web/`): Style 1 → `[Channel]/[FeatureName]/…` above feature folders; Style 2 in flat slices → file prefix `[Channel][EntityName]Controller.{ext}` (flat stays flat — no channel folders); Style 2 in Explicit Architecture variants (technical and vertical) → channel folders under `Api/`/`Web/`. Omitted for single-channel slices. |
+| `[Channel]` | A delivery channel/audience segment distinguishing access to the same entity | `Admin`, `Public` | Delivery folders (`Api/`, `Web/`) — rules consolidated in **Channel handling** below |
 | `[AggregateName]` | An aggregate root grouped with its child entities in a dedicated folder | `Order` (with `OrderItem`), `Invoice` | `Domain/[AggregateName]/` folder (Explicit Architecture) |
 | `{ext}` | The project's file extension, substituted per stack conventions | `.ts`, `.php`, `.go`, `.py` | File suffix in the folder trees |
 
@@ -44,6 +44,11 @@ All folder structures in this document use consistent placeholder names:
 - **Style 2: Unified Multi-Action:** All use cases of an entity are grouped into single per-entity files (`[EntityName]Controller.{ext}`, `[EntityName]Service.{ext}`); DTOs sit next to the service (see the trees). Fewer files, traditional conventions.
 
 **Default style per variant:** vertical slice variants (Structured Modules Vertical, Explicit Vertical, Explicit Flat) default to **Style 1**; technical-layer variants (Structured Modules Technical, Explicit Technical) and Microservices default to **Style 2**. Layered Architecture has no style choice (unified multi-action by design).
+
+**Channel handling:** `[Channel]` distinguishes multiple audiences served by the same delivery folder. It applies only where the trees show delivery folders (`Api/`, `Web/` in the Explicit Architecture variants and the single-microservice `Api/`), and only when the project serves multiple audiences — omit `[Channel]/` entirely for single-channel projects:
+- **Style 1:** a `[Channel]/` folder sits above the feature folders: `[Channel]/[FeatureName]/[FeatureName]Action.{ext}`.
+- **Style 2, Explicit technical and vertical variants:** channel folders under `Api/`/`Web/`: `[Channel]/[EntityName]Controller.{ext}`.
+- **Style 2, flat slices:** flat stays flat — no channel folders; the channel becomes a file prefix: `[Channel][EntityName]Controller.{ext}` (e.g. `AdminUserController.{ext}`).
 
 **Role mapping across styles:** `[FeatureName]Action` fills the Controller role (delivery mechanism), `[FeatureName]Handler` fills the Service/Application-Service role (use-case logic), and `[EntityName]Repository` fills the data-access role. Every dependency rule expressed with Controller/Service vocabulary (strict downward flow, no layer skipping, inward dependencies) applies identically to the Action/Handler files: an Action must never bypass the Handler to call a Repository directly.
 
@@ -417,7 +422,7 @@ src/
 │   │   │   │   ├── [FeatureNameA]Handler.{ext} # Use case logic
 │   │   │   │   └── [FeatureNameA]Dto.{ext}     # Request/Response DTO
 │   │   │   # ── Style 2: Unified Multi-Action (Alternative) ──
-│   │   │   # ├── [EntityName]Controller.{ext} # Unified: all actions in one controller
+│   │   │   # ├── [EntityName]Controller.{ext} # Unified: all actions in one controller; multi-audience → prefix [Channel]: [Channel][EntityName]Controller.{ext} (flat stays flat)
 │   │   │   # ├── [EntityName]Service.{ext}    # Unified: all use cases in one service
 │   │   │   # ├── [FeatureName]Dto.{ext}       # DTO next to the unified service
 │   │   │   # ── Shared Data Access ──
