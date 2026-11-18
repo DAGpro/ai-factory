@@ -20,7 +20,7 @@ Reference material for architecture evaluation and generation. This content info
 
 ¹ Unit tests are easy per service, but integration/contract tests across services add significant complexity.
 
-**Note on subvariants:** Each pattern offers multiple folder organization variants (e.g., *by technical layer*, *by vertical slice*). Organization variants within the same pattern generally share the same scores. The column `Explicit Architecture (Vertical Slice By Entity)` also represents `Explicit Architecture (Flat Vertical Slice - Simplified)` in terms of architectural properties. Similarly, `Structured Modules (Vertical Slices By Entity)` shares characteristics with Structured Modules but offers higher feature independence. The organization variant is chosen separately based on module/context size and feature independence needs.
+**Note on subvariants:** Each pattern offers multiple folder organization variants (e.g., *by technical layer*, *by vertical slice*). Organization variants within the same pattern generally share the same scores. The column `Explicit Architecture (Vertical Slice By Entity)` also represents `Explicit Architecture (Flat Vertical Slice - Simplified)` in terms of architectural properties. Similarly, `Structured Modules (Vertical Slices By Entity)` shares the Structured Modules scores, with feature independence higher than the Technical Layer variant (it has no dedicated column). The organization variant is chosen separately based on module/context size and feature independence needs.
 
 ## Terminology
 
@@ -50,7 +50,7 @@ All folder structures in this document use consistent placeholder names:
 - **Style 2, Explicit technical and vertical variants:** channel folders under `Api/`/`Web/`: `[Channel]/[EntityName]Controller.{ext}`.
 - **Style 2, flat slices:** flat stays flat — no channel folders; the channel becomes a file prefix: `[Channel][EntityName]Controller.{ext}` (e.g. `AdminUserController.{ext}`).
 
-**Role mapping across styles:** `[FeatureName]Action` fills the Controller role (delivery mechanism), `[FeatureName]Handler` fills the Service/Application-Service role (use-case logic), and `[EntityName]Repository` fills the data-access role. Every dependency rule expressed with Controller/Service vocabulary (strict downward flow, no layer skipping, inward dependencies) applies identically to the Action/Handler files: an Action must never bypass the Handler to call a Repository directly.
+**Role mapping across styles:** `[FeatureName]Action` fills the Controller role (delivery mechanism), `[FeatureName]Handler` fills the Service/Application-Service role (use-case logic), and `[EntityName]Repository` fills the data-access role. Every dependency rule expressed with Controller/Service vocabulary (strict downward flow, no layer skipping, inward dependencies) applies identically to the Action/Handler files — and to their `[FeatureName]Controller` / `[FeatureName]Service` equivalents in the variants whose trees use that naming (Structured Modules Technical Layer, Microservices): an Action (or Controller) must never bypass the Handler (or Service) to call a Repository directly.
 
 ## Quick Decision Guide
 
@@ -58,12 +58,15 @@ All folder structures in this document use consistent placeholder names:
 New project, small team, simple domain? → Layered
 Growing project, need structure but not full formalism? → Structured Modules
 Complex business logic, many rules? → Explicit Architecture
-Many independent features, long-lived? → Explicit Architecture (Vertical Slice By Entity)
-Multiple subdomains, large team? → Explicit Architecture or Explicit Architecture (Vertical Slice By Entity) or Explicit Architecture (Flat Vertical Slice - Simplified)
+Many independent features, long-lived? → Explicit Architecture (vertical-slice variant usually fits; chosen separately)
+Multiple subdomains, large team? → Explicit Architecture (variant chosen separately)
 Independent scaling + large org? → Microservices
 Simple CRUD app? → Layered Architecture
 Unclear requirements? → Start with Structured Modules, evolve to Explicit when patterns emerge
 ```
+
+This guide routes the pattern only; the structural variant (technical layer / vertical
+slices / flat) is always a separate second decision.
 
 ## Evolution Triggers
 
@@ -290,22 +293,26 @@ src/
 │   └── Presentation/                           # PRESENTATION (delivery mechanism)
 │       ├── Api/                                # JSON endpoints
 │       │   # ── Style 2: Unified Multi-Action (default) ──
-│       │   ├── Admin/                          # Backoffice API (channel folders per [Channel])
+│       │   # multi-audience example below; single-audience → controllers sit directly
+│       │   # under Api/ with no [Channel]/ level (see Channel handling)
+│       │   ├── Admin/                          # [Channel] folder — Backoffice API
 │       │   │   └── [EntityName]Controller.{ext}
-│       │   └── Public/                         # Public API
+│       │   └── Public/                         # [Channel] folder — Public API
 │       │       └── [EntityName]Controller.{ext}
 │       │   # ── Style 1: Feature Subfolders (Alternative) ──
 │       │   # └── [Channel]/[FeatureName]/
-│       │   #     └── [FeatureName]Action.{ext}    # single-channel: omit [Channel]/ ([Channel])
+│       │   #     └── [FeatureName]Action.{ext}    # single-channel: omit [Channel]/
 │       ├── Web/                                # HTML views & controllers
 │       │   # ── Style 2: Unified Multi-Action (default) ──
-│       │   ├── Admin/                          # Backoffice Web
+│       │   # multi-audience example below; single-audience → controllers sit directly
+│       │   # under Web/ with no [Channel]/ level (see Channel handling)
+│       │   ├── Admin/                          # [Channel] folder — Backoffice Web
 │       │   │   └── [EntityName]Controller.{ext}
-│       │   └── Public/                         # Public Web
+│       │   └── Public/                         # [Channel] folder — Public Web
 │       │       └── [EntityName]Controller.{ext}
 │       │   # ── Style 1: Feature Subfolders (Alternative) ──
 │       │   # └── [Channel]/[FeatureName]/
-│       │   #     └── [FeatureName]Controller.{ext}   # single-channel: omit [Channel]/ ([Channel])
+│       │   #     └── [FeatureName]Controller.{ext}   # single-channel: omit [Channel]/
 │       └── Cli/                                # Console commands
 │           └── [EntityName]Command.{ext}
 │

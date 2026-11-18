@@ -32,7 +32,7 @@ Precedence: individual > build (when applicable) > global > skill defaults; reta
 These layers customize workflow; they do not replace the project's rules/architecture hierarchy or relax explicit requirements, ownership, scope, safety/privacy, validation, or approval boundaries. Report conflicts with those boundaries instead of overriding them.
 `global` is a project-local layer, not home-directory configuration. Custom/extension skills do not automatically use it.
 
-Generate `.ai-factory/ARCHITECTURE.md` with architecture decisions tailored to the project.
+Generate the resolved architecture artifact (default `.ai-factory/ARCHITECTURE.md`; `paths.architecture` overrides) with architecture decisions tailored to the project.
 
 ## Workflow
 
@@ -68,6 +68,9 @@ Run /aif first to set up project context, or describe your project manually:
 
 Allow standalone usage — if user provides manual input, use that instead.
 
+**Read `.ai-factory/skill-context/global-skill-context.md`** — shared learned rules for all
+bundled skills (skip if missing; an unreadable file stops dependent work with its path).
+
 **Read `.ai-factory/skill-context/aif-architecture/SKILL.md`** — MANDATORY if the file exists.
 
 This file contains project-specific rules accumulated by `/aif-evolve` from patches,
@@ -90,7 +93,11 @@ If any rule is violated — fix the output before presenting it to the user.
 
 ### Step 1: Select Architecture Pattern & Structure
 
-Follow this sequence in two phases: items 1-2 gather facts, items 3-6 resolve decisions — each decision consumes the facts before it. A flag with no effect in the resolved situation (`--policy` on a clean/conforming codebase, `--style` for Layered) is a no-op — report it as an assumption. Below, *non-interactive* means `HANDOFF_MODE=1` / subagent runs:
+Follow this sequence in two phases: items 1-2 gather facts, items 3-6 resolve decisions — each decision consumes the facts before it. A flag with no effect in the resolved situation (`--policy` on a clean/conforming codebase — provisionally, the item 5 re-check can still make it effective,
+`--style` for Layered, `--existing` when the resolved path does not exist yet) is a no-op —
+report it as an assumption. An unrecognized `--style`, `--policy`, or `--existing` value is
+reported the same way and the run continues without it (defaults and detection apply).
+Below, *non-interactive* means `HANDOFF_MODE=1` / subagent runs:
 
 **1. Read the Architecture Reference:**
 Read `references/architecture.md` first — its decision matrix, terminology, styles, folder trees, and dependency directions are authoritative for everything below and for generation.
@@ -99,11 +106,15 @@ Read `references/architecture.md` first — its decision matrix, terminology, st
 Inspect the structure with read-only listing — **`Glob`** and targeted **`ls`**; adapt the probes to what the results reveal — no fixed root list (the reference's stack conventions are the vocabulary, not a probe script).
 - `allowed-tools` restricts shell to `ls` and `mkdir`: no `find`/`tree`/`dir`, no mutating commands; `ls` only for targeted directory evidence.
 - **Technique:** probe in widening passes — seed `*`, `*/*`, then widen roughly one level per pass into the roots revealed by the results, DESCRIPTION.md's stack, and manifest/config files (e.g. `src/*/*`, `apps/*/*/*`) until the structure is resolved. Glob returns file paths — infer directories from path prefixes; disambiguate with targeted `ls <dir>`, not deeper blanket globs. A shallow pass is incomplete, not evidence of absence.
-- **Bounded evidence:** exclude dependency/build/vendor directories (the ignore files are the authority); targeted probes, never full recursion.
-- **Classification outcome:** distinguish technical layers (role-named folders with homogeneous files across entities: `controllers/`, `models/`) from feature modules (domain-named folders grouping cohesive feature logic: `users/`, `billing/`) and bootstrap framing files.
+- **Bounded evidence:** exclude dependency/build/vendor directories (the project's ignore files — `.gitignore` first — are the authority); targeted probes, never full recursion.
+- **Classification outcome:** distinguish technical layers (role-named folders with homogeneous files across entities: `controllers/`, `models/`) from feature modules (domain-named folders grouping cohesive feature logic: `users/`,
+`billing/`) and bootstrap framing files (framework entry points, layouts, and generated
+boilerplate the scaffold owns — delivery/configuration plumbing, never domain logic).
   - **Clean Project or Starter Scaffolding:** re-running the framework's scaffold command and
     restoring configuration values and utility files reproduces everything present — no
-    custom domain code, no business logic anywhere.
+    custom domain code, no business logic anywhere. Projects without a framework scaffold
+    count as Clean only while they hold no domain code (configuration, scripts, and framing
+    files only); any domain work makes them Existing.
   - **Existing Codebase:** any file contains project-specific domain work the scaffold would
     not regenerate — custom domain models, business services, or domain routes. That work
     must be preserved and documented, not regenerated; verify ambiguous verdicts with a
@@ -115,13 +126,17 @@ Inspect the structure with read-only listing — **`Glob`** and targeted **`ls`*
   independent probes agree — otherwise record ambiguous (items 5-6 use free choice).
   Item 3 cites the evidence, item 4 compares it against the pattern's canon, items 5-6
   detect the de-facto variant and style.
+- **Artifact-path check (fact for the blocking contract):** record whether the resolved
+  architecture path (Step 0) already exists — the contract below consumes this for the
+  `--existing` decision.
 
 **3. Determine Pattern:**
 - **From `$ARGUMENTS`:**
   - Direct mappings: `layers` → Layered Architecture; `structured` → Structured Modules; `explicit` → Explicit Architecture; `microservices` → Microservices.
   - Legacy aliases (deprecated): `clean` or `ddd` → Explicit Architecture, `monolith` → Structured Modules — these resolve only the pattern; the variant question in item 5 still applies. `vertical` → Explicit Architecture (Vertical Slice By Entity) — resolves both pattern and variant; only the action-style question in item 6 applies.
   - Explicit suffixed arguments (variant already determined): `structured-layers`, `structured-vertical`, `explicit-layers`, `explicit-vertical`, `explicit-flat`, `microservices-single`, `microservices-monorepo`.
-  - Unrecognized positional tokens (anything outside the mappings above) are not a pattern: report them, and follow the evaluation path below. In interactive mode, first ask whether the token was meant as a pattern.
+  - Unrecognized positional tokens (anything outside the mappings above) are not a pattern: report them. When no positional token resolved a pattern, follow the evaluation path below; in interactive mode, first ask whether a token was meant as a pattern — a `yes` cannot create a pattern: list the accepted pattern tokens and re-ask, and a token named in the answer resolves the pattern like a direct mapping.
+  - Two positional tokens compose when the second names a variant of the pattern the first maps to (e.g. `explicit vertical` ≡ `explicit-vertical`, `structured layers` ≡ `structured-layers`, `microservices monorepo` ≡ `microservices-monorepo`). In any other combination a token that maps to a pattern still resolves it, and only the non-mapping tokens are reported as unrecognized; three or more positional tokens are all unrecognized.
 - **From Evaluation (if no architecture specified in `$ARGUMENTS`):**
   - Evaluate the project against the decision matrix in `references/architecture.md` considering team size, domain complexity, scale requirements, tech stack, and the item 2 survey evidence.
   - Non-interactive:
@@ -141,19 +156,28 @@ Inspect the structure with read-only listing — **`Glob`** and targeted **`ls`*
     4. [Alternative 3] — [brief reason]
     ```
     Architecture options (menu = the four base patterns; the structural variant is chosen
-    separately in item 5):
+    separately in item 5 — an answer that names a variant for the chosen pattern, e.g.
+    `Structured Modules — Vertical Slices By Entity`, also resolves it and item 5 treats it
+    as determined):
     - **Layered Architecture**
     - **Structured Modules** — variants: Technical Layer | Vertical Slices By Entity
-    - **Explicit Architecture** — variants: Technical Layer | Vertical Slice By Entity | Flat Vertical Slice (Simplified)
+    - **Explicit Architecture** — variants: Technical Layer | Vertical Slice By Entity | Flat Vertical Slice - Simplified
     - **Microservices** — variants: Single Service Repository | Monorepo
     (See `references/architecture.md` for detailed pattern characteristics). Wait for user response before proceeding.
 
 **4. Resolve the Alignment Policy (existing codebases only):**
-- **Clean projects skip this item:** record `strict` in the Decision Rationale (strict conformity — no discrepancy, no legacy). Proceed to item 5.
-- **Compare the item 2 inventory against the chosen pattern's canonical expectations:**
-  - **Conforming** — no conflicting layer/module placements: record `strict` without asking or adding quarantine policies; proceed to item 5.
+- **Pattern pending (non-interactive existing):** when item 3 routed the pattern decision to
+  the `BLOCKED` payload, skip items 4-6 entirely — no comparisons and no variant/style
+  entries; the pending pattern entry already carries the decisions it gates, and the run
+  returns ONE `BLOCKED` (plus the existing-artifact entry when the item 2 check found the
+  path occupied).
+- **Clean projects skip this item:** record `strict` in the Decision Rationale (strict
+  conformity — no discrepancy, no legacy; the classification line distinguishes this from
+  the quarantine meaning below). Proceed to item 5.
+- **Compare the item 2 inventory against the chosen pattern's canonical expectations — those of the resolved variant when one is already resolved at this point (a suffixed form, `vertical`, a two-token composition, or a variant named in the item 3 answer — e.g. `explicit-vertical` compares against the vertical-slice canon); when no variant is resolved yet, compare against the pattern's variant-agnostic boundary and dependency canon:**
+  - **Conforming** — no conflicting layer/module placements: record `strict` without asking or adding quarantine policies; proceed to item 5. This verdict is provisional until the variant is resolved — the item 5 re-check below re-tests it against the resolved variant's canon.
   - **Discrepancies:**
-    - If `--policy=adapt|strict` is specified (one value): apply the **adapt policy** (document reality) or the **strict policy** (quarantine legacy, refactor later). Proceed to item 5.
+    - If `--policy=adapt|strict` is specified (one value; repeated — the last value): apply the **adapt policy** (document reality) or the **strict policy** (quarantine legacy, refactor later). Proceed to item 5.
     - Otherwise: interactive → ask via `AskUserQuestion`:
       ```
       The current project structure differs from the ideal [Pattern Name] architecture.
@@ -168,45 +192,73 @@ Inspect the structure with read-only listing — **`Glob`** and targeted **`ls`*
       status, discrepancies, and the `--policy=adapt|strict` options.
 
 **5. Resolve the Structural Variant:**
-- **Determined by `$ARGUMENTS`** (suffixed forms or `vertical`): proceed to item 6.
+- **Layered has no variant:** when the resolved pattern is Layered Architecture, skip this
+  item entirely (no detection, no ask) and proceed to item 6.
+- **Determined by `$ARGUMENTS`** (suffixed forms, `vertical`, or a variant named in the item 3 menu answer): proceed to item 6.
 - **Detected from the survey:** existing + conforming/adapt (item 4) and an unambiguous
   de-facto variant in the item 2 inventory (per-entity slice folders → vertical; side-by-side
-  action/handler files without layer subfolders → flat; role-named layer folders → technical
+  action/handler files without layer subfolders → flat — Explicit Architecture only, the same
+  signal under Structured Modules counts as ambiguous → free choice; role-named layer folders → technical
   layer; one service root vs several → single/monorepo):
   - Non-interactive: use the detected variant, report it as an assumption, proceed to item 6.
   - Interactive: confirm — "The existing code is organized as [detected variant]. Use it?
-    1. [Detected variant] (Recommended) 2. [remaining options]" — and wait.
-- **Free choice** (clean, strict over discrepancies, or ambiguous detection):
-  - Non-interactive: clean → canonical default (`structured-layers` for `structured`/`monolith`,
-    `explicit-layers` for `explicit`/`clean`/`ddd`, `microservices-single` for `microservices`),
-    report; existing → add the variant decision to the `BLOCKED` payload with the available
-    variant options.
+    1. [Detected variant] (Recommended) 2. [remaining variant options for the pattern]" — and wait.
+- **Free choice** (Clean classification, strict over discrepancies, or ambiguous detection):
+  - Non-interactive: a Clean-classified project takes the canonical default of its resolved
+    pattern (`structured-layers` for Structured Modules, `explicit-layers` for Explicit
+    Architecture, `microservices-single` for Microservices; Layered skips this item) and
+    reports it; existing → add the variant decision to the `BLOCKED` payload with the
+    available variant options.
   - Interactive: ASK the user to choose a variant:
-    - If `structured` or `monolith`: "Which folder structure variant do you prefer for Structured Modules? 1. Technical Layer (simpler, Recommended) or 2. Vertical Slices by Entity (better for large modules)".
-    - If `explicit`, `clean`, or `ddd`: "Which folder structure variant do you prefer for Explicit Architecture? 1. Technical Layer (simpler, Recommended) or 2. Vertical Slice by Entity or 3. Flat Vertical Slice - Simplified".
-    - If `microservices`: "Which repository structure do you prefer for Microservices? 1. Single Microservice (dedicated repository, Recommended) or 2. Multiple Microservices (monorepo with Gateway/Libs)".
+    - If the resolved pattern is Structured Modules (via `structured`, `monolith`, or the menu): "Which folder structure variant do you prefer for Structured Modules? 1. Technical Layer (simpler, Recommended) or 2. Vertical Slices By Entity (better for large modules)".
+    - If the resolved pattern is Explicit Architecture (via `explicit`, `clean`, `ddd`, or the menu): "Which folder structure variant do you prefer for Explicit Architecture? 1. Technical Layer (simpler, Recommended) or 2. Vertical Slice By Entity or 3. Flat Vertical Slice - Simplified".
+    - If the resolved pattern is Microservices: "Which repository structure do you prefer for Microservices? 1. Single Service Repository (dedicated repository, Recommended) or 2. Monorepo (multiple services with shared Libs/Gateway)".
     Wait for user response before proceeding.
+- **Re-check (existing codebases with a provisional conforming verdict):** once the variant
+  is resolved above while item 4 recorded conforming under the variant-agnostic canon,
+  re-run the item 4 comparison against the resolved variant's canon — before item 6. Still
+  conforming → keep `strict`, proceed to item 6. Downgraded to discrepancies → item 4's
+  outcome becomes the downgraded one (item 6 gating reads it): resolve the policy by the
+  item 4 discrepancy branch (flag / interactive ask / `BLOCKED` entry) and continue to
+  item 6 — not back to item 5.
 
 **6. Resolve the Action Organization Style (all patterns except Layered):**
 - `--style=subfolders` → Style 1 (Feature Subfolders), `--style=unified` → Style 2 (Unified
-  Multi-Action); `--style` wins over every default below, a repeated flag — the last value.
+  Multi-Action); `--style` wins over every default and detection below, a repeated flag —
+  the last value.
 - **Detected from the survey:** existing + conforming/adapt (item 4) with an unambiguous
   de-facto style (`[FeatureName]/` subfolders → Style 1; unified per-entity files → Style 2):
   non-interactive → use it and report; interactive → confirm with the detected style
   Recommended, and wait.
 - **Free choice:** Style 1 default for vertical slice variants, Style 2 for technical-layer
   variants and Microservices; non-interactive → default + report; interactive → ASK with the
-  variant default Recommended, and wait.
-- Layered has no style choice: `--style` is ignored (unified-only).
+  variant's default style Recommended, and wait.
+- Layered has no style choice: `--style` is a no-op there (unified-only) — report it as
+  an assumption.
 
-**Non-interactive blocking contract:** after the fact phase, resolve everything resolvable
-from `$ARGUMENTS`, flags, defaults, and unambiguous detection; collect every remaining
-material decision (pattern for existing codebases; variant or policy under strict over
-discrepancies; and, when the resolved architecture path already exists, the
-`--existing=overwrite|merge|skip` choice) and return ONE `BLOCKED` listing each with its
-options and the flag that resolves it — never proceed to Step 2 with any unresolved.
-Resolved pattern + `--policy=adapt` + unambiguous detection ⇒ a fully non-interactive run
-on reported assumptions.
+**Non-interactive blocking contract:** after items 3-6 resolve everything resolvable
+from `$ARGUMENTS`, flags, defaults, and unambiguous detection, collect every remaining
+material decision (pattern for existing codebases; variant when it is a free choice on an
+existing codebase — strict over discrepancies or ambiguous detection; policy when
+unresolved under discrepancies, including a conforming verdict downgraded by the item 5
+re-check; and, when the item 2 artifact-path check found the
+resolved architecture path already existing, the `--existing=overwrite|merge|skip` choice)
+and return ONE `BLOCKED` listing each with its options and the flag that resolves it —
+never proceed to Step 2 with any unresolved.
+Resolved pattern + `--policy=adapt` + unambiguous variant detection + no existing artifact
+at the resolved path (or an explicit `--existing` flag) ⇒ a fully non-interactive run on
+reported assumptions; an ambiguous style never blocks — its default is reported.
+
+`BLOCKED` payload shape (one numbered entry per pending decision; each entry lists its
+options and the flag or argument that resolves it):
+
+```text
+BLOCKED — unresolved decisions for /aif-architecture (example: Explicit Architecture)
+1. Pattern — options: Layered | Structured Modules | Explicit Architecture | Microservices; resolves with: explicit pattern argument
+2. Structural variant — only once a pattern is resolved and the variant is a free choice on an existing codebase; options: Technical Layer | Vertical Slice By Entity | Flat Vertical Slice - Simplified; resolves with: suffixed token or `vertical`
+3. Alignment policy — only once a pattern is resolved and discrepancies are found; options: adapt | strict; resolves with: --policy=<value>
+4. Existing artifact — only when the resolved path already exists; options: overwrite | merge | skip; resolves with: --existing=<value>
+```
 
 ### Step 2: Generate the Architecture Artifact
 
@@ -218,15 +270,36 @@ Create the parent directory for the resolved architecture path if needed.
 - Interactive without the flag: ask the user — 1. overwrite (replace the whole file),
   2. merge (regenerate the template sections, preserve everything outside the template),
   3. skip (keep the file as-is).
-- Non-interactive without the flag: stop and return `BLOCKED` with the existing-file
-  status and these options.
-- `overwrite` discards sections outside the template — report the loss. `merge` regenerates
-  in place the sections of the existing artifact whose headings match the template sections
-  this run generates, and preserves every other section as user content (renamed template
-  sections included — matching is by heading only, never by content similarity); after
-  merging, list preserved sections that may duplicate regenerated ones or contradict the
-  resolved alignment policy (e.g. a policy section left from a previous run) for manual cleanup.
-  `skip` keeps the artifact untouched and continues with the pointer updates (Steps 3-5).
+- Non-interactive without the flag: normally already collected by the Step 1 blocking
+  contract (the item 2 check feeds it); if reached anyway (e.g. the file appeared after
+  Step 1), stop and return `BLOCKED` with the existing-file status and these options.
+- `overwrite` discards sections outside the template — report the loss (state it explicitly
+  when the existing file lacks the `## Regeneration` marker — not generated by this skill).
+- `merge` regenerates in place the sections of the existing artifact whose `##` headings
+  match the template sections this run generates; a matched section is regenerated in full,
+  including its subsections (matching is by heading only, never by content similarity, and
+  happens at the `##` level — `###` subheadings never match independently). Template
+  sections missing from the existing artifact are added (conditional policy sections
+  included — an outcome change between runs is reflected by adding; a stale policy section
+  left by a previous run is never deleted, it is preserved and named below for manual
+  cleanup). When the file lacks the `## Regeneration` marker, state that merge rewrites any
+  section whose heading coincides with a template heading. An artifact that carries the
+  `## Regeneration` section was generated by this skill: when its headings are in a
+  different `language.artifacts` and none or almost none of its template headings match the
+  current template headings, regenerate every template section by its role — each
+  regenerated section replaces its foreign-language counterpart in place instead of
+  duplicating the document; a foreign section with no current template role is preserved
+  and named below like any other user content. The `# Architecture:`
+  document title is always regenerated with the resolved canonical pattern name (template,
+  never matched content); every other section is preserved as user content (renamed
+  template sections included). After merging, list preserved sections that may duplicate
+  regenerated ones or contradict the resolved alignment policy (e.g. a policy section left
+  from a previous run) for manual cleanup — report the list in Step 5.
+- `skip` keeps the artifact untouched and continues with the pointer updates (Steps 3-5),
+  with one guard: the Step 3 pointer's `Pattern:` line describes the skipped artifact, not
+  this run's resolution — reuse the pattern the artifact itself names (the Decision
+  Rationale's canonical `Pattern/variant` line when present, else the document title);
+  omit the line when the artifact names none.
 
 Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.md`) with the following structure, **adapted to the project's tech stack and language**:
 
@@ -237,13 +310,14 @@ Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.
 [1-2 paragraphs: what this architecture is and why it was chosen for THIS project]
 
 ## Decision Rationale
-- **Pattern/variant:** [canonical `Pattern (Variant)` name — e.g. `Explicit Architecture (Vertical Slice By Entity)`; Layered has no variant suffix]
+- **Pattern/variant:** [canonical `Pattern (Variant)` name — e.g. `Explicit Architecture (Vertical Slice By Entity)`; Layered has no variant suffix; Microservices records `Microservices (Single Service Repository)` or `Microservices (Monorepo)`]
 - **Codebase classification:** [clean | existing (conforming) | existing (discrepancies)]
-- **Project type:** [from DESCRIPTION.md]
+- **Project type:** [from DESCRIPTION.md, or from the user's manual input in standalone runs]
 - **Tech stack:** [language, framework]
 - **Key factor:** [primary reason for this choice]
 - **Action organization:** [Style 1: Feature Subfolders or Style 2: Unified Multi-Action; Layered records Style 2 (unified by design)]
-- **Alignment policy:** [adapt or strict]
+- **Alignment policy:** [adapt or strict; for `strict`, the classification line above
+  tells conformity from quarantine apart]
 
 ## Folder Structure
 \`\`\`
@@ -282,6 +356,7 @@ Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.
   - *For Structured Modules (Technical Layer):* module-scoped → `[ModuleName]/Legacy/` at the module root; cross-module → the `Legacy/` folder at the `src/` root.
   - *For Structured Modules (Vertical):* module-scoped → the module's own `Infrastructure/Legacy/`; cross-module → the same root `Legacy/` folder at the `src/` root. Keep rich models uncontaminated.
   - *For Layered Architecture:* Isolate legacy data access behind new Service/Repository interfaces; prevent new controllers from invoking legacy endpoints directly.
+  - *For Microservices:* quarantine inside the owning service: `[ServiceName]/src/Infrastructure/Legacy/`; never place legacy code into `Libs/` or another service.
 - **Opportunistic Migration:** Migrate legacy code incrementally only when a planned task touches that domain.
 
 [If the adapt policy is selected, add:]
@@ -312,11 +387,21 @@ content, rerun `/aif-architecture` with `--existing=merge`.
 ```
 
 **Rules for generation:**
-- Name the pattern canonically wherever the artifact names it (heading, Decision Rationale, Step 3 pointer, Step 5 confirmation): `[Pattern] ([Variant])` — e.g. `Explicit Architecture (Vertical Slice By Entity)`; Layered without a suffix
+- Name the pattern canonically wherever the artifact names it (heading, Decision Rationale, Step 3 pointer, Step 5 confirmation): `[Pattern] ([Variant])` — e.g. `Explicit Architecture (Vertical Slice By Entity)`; Layered without a suffix; the Step 2 `skip` mirror echoes the skipped artifact's own name verbatim instead of canonizing it
 - Adapt ALL examples to the project's language and framework (don't use TypeScript examples for a Go project)
 - Use the project's actual conventions (import paths, naming, etc.)
 - Keep it practical — focus on rules that affect day-to-day development
-- Base the generated folder structure on the Step 1 (item 4) outcome: **adapt** → reflect the existing structure and its allowed dependency paths; **strict**, clean, or conforming → render the canonical target structure (strict selected for discrepancies also documents the legacy quarantine location).
+- Base the generated folder structure on the resolved pattern, variant, and style:
+  **adapt** → render the resolved variant/style as the target and document the existing
+  structure's real deviations from it beneath the tree as current-state deviations;
+  **strict**, clean, or conforming → render the canonical target structure (strict
+  selected for discrepancies also documents the legacy quarantine location).
+  Dependency Rules render the resolved variant's target rules; under **adapt** with a
+  target that differs from reality, paths reality contradicts are named in the deviations
+  list instead of being presented as allowed.
+  An explicit `$ARGUMENTS` variant (`vertical` or a suffixed form) wins over detected
+  structure; report the mismatch. An explicit `--style` value wins over the detected
+  de-facto style the same way; report that mismatch too.
 - Render the chosen style per the annotations of the variant's folder tree in references — Style 1 puts each use case in its `[FeatureName]/` folder across every layer it touches (delivery included), Style 2 keeps per-entity unified Controller/Service files with DTOs next to the service; multi-audience slices add channel folders per `[Channel]`. Layered renders unified Controller/Service per entity.
 - **Domain/Model placement:**
   - *For Explicit Architecture:* in the Domain layer, place entities directly in `Domain/` (or under `Domain/Entities/` per stack conventions), or in `Domain/[AggregateName]/` for aggregates with child entities. Pure cross-entity business rules belong in `Domain/Services/`, and outbound interfaces belong in `Domain/Ports/`.
@@ -338,7 +423,14 @@ content, rerun `/aif-architecture` with `--existing=merge`.
 
 ### Step 3: Update DESCRIPTION.md
 
-If the resolved DESCRIPTION.md path exists, add or update an architecture-pointer section in resolved `language.artifacts`.
+If the resolved DESCRIPTION.md path exists, add or update an architecture-pointer section
+in resolved `language.artifacts` (append at the end unless a pointer section already exists
+elsewhere — recognize it by the localized heading, by its `Pattern:` label line, or by the
+sentence that references the architecture artifact path (the currently resolved one or any
+earlier architecture path); the path reference is language-independent and also covers
+sections written under a different `language.artifacts` and a relocated `paths.architecture`;
+update that one in place). After a Step 2 `skip`, the `Pattern:` line describes the skipped artifact's own
+pattern, or is omitted when the artifact names none.
 Use the resolved architecture path from config, not the default path literal.
 
 ```markdown
@@ -355,11 +447,18 @@ If `AGENTS.md` exists in the project root, add the resolved architecture artifac
 | [resolved-architecture-path] | [Localized architecture artifact description in resolved artifacts language] |
 ```
 
-If a row already points to the resolved path, leave it; if an architecture row references a
-different path (e.g. relocated `paths.architecture`), update it in place. If `AGENTS.md` has
-no "AI Context Files" table, create a minimal one per the `/aif` setup conventions
-(localized heading, `File | Purpose` header) and add the architecture row; report the
-created table in Step 5.
+Recognize the architecture row by its path cell: the resolved architecture path, the default
+`.ai-factory/ARCHITECTURE.md`, or a row whose path cell points inside `.ai-factory/` and
+whose purpose text names architecture guidelines (e.g. a relocated `paths.architecture`).
+If a row already points to the resolved path, leave it; if such an architecture row
+references a different path, update it in place. A row outside `.ai-factory/` whose purpose
+text merely mentions architecture is user content — never rewrite it; add a separate
+architecture row instead. If `AGENTS.md` has
+no "AI Context Files" table, first look for any `File | Purpose` context-files table under
+another heading — when several exist, use the first in document order and add the row only
+there; reuse it in its existing language instead of duplicating; only when none
+exists, create a minimal one per the `/aif` setup conventions (localized heading,
+`File | Purpose` header) and add the architecture row; report the created table in Step 5.
 
 ### Step 5: Confirm
 
@@ -369,9 +468,11 @@ Present the confirmation in resolved `language.ui` and report the resolved archi
 [Localized success heading in `language.ui`]
 
 [Localized pattern label in `language.ui`]: [canonical pattern-variant name]
-[Localized style label in `language.ui`]: [resolved action organization style; omit the line for Layered]
-[Localized policy label in `language.ui`]: [resolved alignment policy: adapt or strict]
+[Localized style label in `language.ui`]: [resolved action organization style; omit for Layered, and under a Step 2 `skip` — the artifact is untouched]
+[Localized policy label in `language.ui`]: [resolved alignment policy: adapt or strict; omit under a Step 2 `skip` — the artifact is untouched]
+[Localized existing-file label in `language.ui`]: [overwrite | merge | skip — only when Step 2 resolved an existing artifact; omit the line otherwise]
 [Localized file label in `language.ui`]: [resolved architecture path]
+[Localized assumptions label in `language.ui`]: [one line per reported assumption (no-op flags, detected variant/style, canonical defaults, explicit-argument mismatches) plus the merge cleanup list when merging and a note when Step 4 created the AGENTS.md table; omit when none]
 
 [Localized key-rules heading in `language.ui`]:
 - [rule 1]
@@ -380,6 +481,13 @@ Present the confirmation in resolved `language.ui` and report the resolved archi
 
 [Localized closing sentence in `language.ui` about workflow skills following these architecture guidelines.]
 ```
+
+Under a Step 2 `skip`, the pattern line mirrors the skipped artifact's own pattern — the
+same source the Step 3 pointer uses — so the confirmation and the pointer cannot name
+different patterns; the style and policy lines are omitted there for the same reason (this
+run's resolutions were never written into the untouched artifact), and the key-rules
+bullets mirror the skipped artifact's own key rules (its Key Principles) — the block is
+omitted when the artifact has none.
 
 ## Artifact Ownership
 
