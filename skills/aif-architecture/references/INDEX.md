@@ -1,4 +1,4 @@
-﻿# Architecture Knowledge Base — Decision Engine & Index
+# Architecture Knowledge Base — Decision Engine & Index
 
 Reference material for architecture evaluation and generation. This index guides the selection of architectural patterns and routes to detailed specification modules for generating `.ai-factory/ARCHITECTURE.md`.
 
@@ -190,12 +190,11 @@ Every structural variant organizes use cases in one of two styles, chosen once a
 
 #### Shared Assets within Style 1 (CRUD & Form Sharing)
 When multiple feature subfolders of the same entity share assets (e.g., a shared CRUD form template, base DTO, or validation schema between `Create[EntityName]` and `Update[EntityName]`):
-1. **Application Layer Purity:** The `Application/` layer contains only use-case orchestration (`[FeatureName]/` folders containing handlers and use-case DTOs). Handlers must **NEVER** contain or import UI components, forms, templates, or HTML markup.
-2. **Entity-Level Backend `_Shared/` Directory:** Shared backend assets MUST be placed in `Slices/[EntityName]/_Shared/` (e.g. `_Shared/Schemas/` for validation schemas, `_Shared/Dtos/` for base DTOs).
-3. **Presentation Layer & Channel-Level `_Shared/` Directories:**
+1. **Entity-Level Backend `_Shared/` Directory:** Shared backend assets belong in `Slices/[EntityName]/_Shared/` (`_Shared/Schemas/` for validation schemas, `_Shared/Dtos/` for base DTOs).
+2. **Presentation Layer & Channel-Level `_Shared/` Directories:**
    - **Cross-Channel Presentation `_Shared/` (`Presentation/Web/_Shared/Components/`):** In UI/Fullstack apps, shared form components (e.g. `[EntityName]Form.{ext}`) consumed across multiple channels (Admin & Public) live in `Presentation/Web/_Shared/Components/`.
    - **Intra-Channel `_Shared/` (`Presentation/[Delivery]/[Channel]/_Shared/`):** Channel-specific shared assets (e.g. admin-only tables, filter bars, channel DTOs/serializers) live inside that channel's own `_Shared/` folder.
-4. **Strict Rule: No Lateral Feature Imports:** A feature subfolder must **NEVER** import directly from a sibling feature subfolder (e.g., `UpdateUser` MUST NOT import from `CreateUser`). Shared backend assets must be elevated to entity-level `_Shared/`, and shared UI assets to the appropriate presentation `_Shared/` scope.
+3. **No Lateral Feature Imports:** A feature subfolder must not import directly from a sibling feature subfolder (e.g., `UpdateUser` does not import from `CreateUser`). Shared backend assets are placed in entity-level `_Shared/`, and shared UI assets in presentation `_Shared/`.
 
 ### Channel Handling
 `[Channel]` distinguishes multiple audiences served by the same delivery folder. It applies only where the trees show delivery folders (`Api/`, `Web/` in the Explicit Architecture variants and the single-microservice `Api/`), and only when the project serves multiple audiences — omit `[Channel]/` entirely for single-channel projects:
@@ -246,6 +245,6 @@ Detailed architecture specifications:
 - 📄 **[Explicit Architecture](./EXPLICIT-ARCHITECTURE.md)** — Clean / Hexagonal / DDD, 4 rings, architectural layers, vertical & flat slices, unified driving adapters (HTTP, async consumers, cron, CLI).
 - 📄 **[Microservices Architecture](./MICROSERVICES.md)** — Polyrepo, monorepo, saga transactions, distributed outbox, failure isolation.
 - 📄 **[Stack Blueprints](./STACK-BLUEPRINTS.md)** — Concrete folder trees and idiomatic patterns for Go, TypeScript, Python, Java, C#, PHP.
-- 📄 **[Domain Modeling & Code Examples](./DOMAIN-MODELING.md)** — Rich vs Anemic models, Value Objects, Aggregate Roots with OCC versioning, Ports & Adapters, CQRS read optimization (domain bypass), Syntactic vs Semantic validation.
+- 📄 **[Domain Modeling & Code Examples](./DOMAIN-MODELING.md)** — Rich vs Anemic models, Value Objects, Aggregate Roots with OCC versioning, Ports & Adapters, CQRS read optimization (domain bypass), Syntactic vs Semantic validation, and SOLID & GRASP architectural principles in code (Tell Don't Ask, ISP role ports, LSP fakes, Creator, Pure Fabrication).
 - 📄 **[Persistence & ORM Integration](./PERSISTENCE-AND-ORM.md)** — Data Mapper pattern (4-tier separation), cross-aggregate references by ID only, atomic Optimistic Concurrency Control, Unit of Work, Transactional Outbox, modern ORM strategies.
 - 📄 **[Architecture Migrations & Evolution Guides](./MIGRATIONS.md)** — Comprehensive migration playbooks: inter-pattern evolution (Layered → Modules → Explicit → Microservices), intra-pattern variant transitions (Technical Layers → Slices, Polyrepo → Monorepo), ORM decoupling (Active Record → Data Mapper), and anti-patterns.

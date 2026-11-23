@@ -1,4 +1,4 @@
-﻿# Structured Modules Architecture
+# Structured Modules Architecture
 
 Structured Modules is a lightweight, domain-aware modular architecture. Each module encapsulates a cohesive feature area with its own delivery endpoints, application services (orchestrators), rich domain models, and repositories.
 

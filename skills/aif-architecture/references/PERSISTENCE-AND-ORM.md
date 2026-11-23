@@ -1,4 +1,4 @@
-﻿# Persistence & ORM Integration Guide
+# Persistence & ORM Integration Guide
 
 A central challenge in Domain-Driven Design and Explicit Architecture is preventing database tools, SQL libraries, and Object-Relational Mappers (ORMs) from contaminating the pure domain layer.
 
@@ -366,7 +366,7 @@ Modern frameworks and ORMs map to the Data Mapper pattern differently:
 
 ### 3. SQLAlchemy 2.0 (Python)
 - **Declarative Models in Infrastructure:** Define `Base = declarative_base()` models inside `infrastructure/db/models.py`.
-- **Workflow:** Keep pure Python `@dataclass` classes in `domain/models/`. Repositories execute async queries with SQLAlchemy and instantiate dataclasses using mappers.
+- **Workflow:** Keep pure Python `@dataclass` classes in `domain/` (e.g. `domain/order.py`). Repositories execute async queries with SQLAlchemy and instantiate dataclasses using mappers.
 
 ---
 

@@ -1404,9 +1404,9 @@ else
     pass "no default DESCRIPTION path leak in /aif-architecture Artifact Ownership"
 fi
 
-if grep -Fq '--style=subfolders|unified' "$AIF_ARCH_SKILL" \
-   && grep -Fq '--policy=adapt|strict' "$AIF_ARCH_SKILL" \
-   && grep -Fq '--existing=overwrite|merge|skip' "$AIF_ARCH_SKILL" \
+if grep -Fq -e '--style=subfolders|unified' "$AIF_ARCH_SKILL" \
+   && grep -Fq -e '--policy=adapt|strict' "$AIF_ARCH_SKILL" \
+   && grep -Fq -e '--existing=overwrite|merge|skip' "$AIF_ARCH_SKILL" \
    && grep -Fq 'microservices[-single|-monorepo]' "$AIF_ARCH_SKILL"; then
     pass "/aif-architecture declares modern CLI flags and microservices variants"
 else
@@ -1422,7 +1422,7 @@ else
 fi
 
 if grep -Fq '## Regeneration' "$AIF_ARCH_SKILL" \
-   && grep -Fq '--existing=merge' "$AIF_ARCH_SKILL"; then
+   && grep -Fq -e '--existing=merge' "$AIF_ARCH_SKILL"; then
     pass "/aif-architecture template contains regeneration and merge contract"
 else
     fail "/aif-architecture template missing regeneration or merge contract"

@@ -1,4 +1,4 @@
-﻿# Layered Architecture
+# Layered Architecture
 
 Layered Architecture separates concerns into horizontal layers. Each layer only depends on the layer directly below it. This is the simplest architectural pattern — easy to understand, quick to bootstrap, and sufficient for small applications with straightforward business logic.
 

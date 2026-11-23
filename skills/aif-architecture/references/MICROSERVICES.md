@@ -1,4 +1,4 @@
-﻿# Microservices Architecture
+# Microservices Architecture
 
 Microservices architecture decomposes an application into a collection of loosely coupled, independently deployable services, each responsible for a distinct business capability aligned with a Bounded Context.
 

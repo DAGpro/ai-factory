@@ -66,8 +66,6 @@ class Order {
   }
 
   public get version(): number { return this._version; }
-    this._items = items;
-  }
 
   // Business behavior encapsulated inside the Aggregate Root
   public addItem(product: Product, quantity: number): void {
@@ -505,7 +503,7 @@ A common source of confusion in DDD is where validation belongs. Validation oper
 
 | Dimension | Syntactic Validation (Input Validation) | Semantic Validation (Domain Invariants) |
 |---|---|---|
-| **Location** | **Presentation / Application Layer** (DTO, Form, Router) | **Domain Layer** (Entities, Value Objects) |
+| **Location** | **Presentation Layer** (DTO, Form, Router) | **Domain Layer** (Entities, Value Objects) |
 | **Tooling** | Zod, Pydantic, FluentValidation, FormRequest | Pure language code (classes, methods, exceptions) |
 | **Question Asked** | *"Is the incoming payload structurally well-formed?"* | *"Is this business operation permitted in current state?"* |
 | **Scope** | Data types, required fields, string length, regex patterns, email formats, numeric ranges | Business rules, state machine transitions, balances, stock availability, credit limits |
@@ -555,3 +553,254 @@ class Order {
   }
 }
 ```
+
+---
+
+## 8. Architectural Principles in Code: SOLID & GRASP in Domain Modeling
+
+Clean Architecture and Domain-Driven Design are the direct, practical realization of the **SOLID** and **GRASP** (General Responsibility Assignment Software Patterns) principles. Rather than abstract academic rules, they serve as daily decision heuristics for class boundaries, dependency flow, and method placement.
+
+### Quick Reference: Mapping Principles to Architecture
+
+| Principle | Architectural Manifestation | Concrete Code Expression |
+|---|---|---|
+| **DIP** *(Dependency Inversion)* | Ports & Adapters (Hexagonal) | `OrderRepositoryPort` in `Domain/`, `PostgresOrderRepository` in `Infrastructure/` |
+| **ISP** *(Interface Segregation)* | Focused, role-based domain ports | Domain ports declare only use-case-relevant queries/commands, never generic 50-method `IRepository<T>` |
+| **SRP** *(Single Responsibility)* | Strict layer and component isolation | Handler orchestrates 1 use case; Entity enforces its own invariants; Adapter translates transport/SQL |
+| **OCP** *(Open-Closed)* | Extensibility via interfaces | Swapping persistence or adding payment providers requires zero changes in Domain/Application |
+| **LSP** *(Liskov Substitution)* | 100% interchangeable adapters & fakes | `InMemoryOrderRepository` behaves identically to `PostgresOrderRepository` in automated tests |
+| **Information Expert** *(GRASP)* | Rich Domain Model | Behavior lives where state lives: `order.addItem()` and `order.recalculateTotal()` belong inside `Order` |
+| **Creator** *(GRASP)* | Aggregate Root boundary | The `Order` aggregate root creates and controls `OrderItem`; external callers never instantiate items directly |
+| **Pure Fabrication** *(GRASP)* | Domain Services & Mappers | `PricingService`, `OrderMapper`, and `UnitOfWork` are synthetic concepts invented for high cohesion |
+| **Protected Variations** *(GRASP)* | Anti-Corruption Layer (ACL) | External APIs or database driver shifts are absorbed by boundary adapters without impacting core domain |
+
+---
+
+### 8.1 Information Expert & "Tell, Don't Ask" vs. Train Wrecks (Law of Demeter)
+
+The **Information Expert** principle states that responsibility should be assigned to the class that holds the information necessary to fulfill it. This directly yields the **"Tell, Don't Ask"** principle and satisfies the **Law of Demeter** (Principle of Least Knowledge): code should tell an object what to do, not ask for its internal state and do the work on its behalf.
+
+#### ❌ Anti-Pattern: "Train Wreck" Getter Traversal & Anemic Manipulation
+```typescript
+// Outside caller (e.g. Service or Controller) navigates internal object graph
+class OrderService {
+  public applyDiscount(order: Order, customer: Customer): void {
+    // ❌ Violates Law of Demeter: navigating deep object structures
+    // ❌ Violates Information Expert: caller performs calculations using Order's data
+    if (customer.getAddress().getCountry() === "US") {
+      const items = order.getItems();
+      for (const item of items) {
+        if (item.getPrice().getAmount() > 100) {
+          const newPrice = item.getPrice().getAmount() * 0.9;
+          item.setPrice(new Money(newPrice, "USD")); // Leaking internal mutation!
+        }
+      }
+      // Manually updating order total from outside:
+      order.setTotal(items.reduce((acc, i) => acc + i.getPrice().getAmount(), 0));
+    }
+  }
+}
+```
+
+#### ✅ Clean Pattern: "Tell, Don't Ask" (Encapsulated Expert)
+```typescript
+// Caller simply tells the aggregate what operation to perform:
+class PlaceOrderService {
+  public async execute(command: PlaceOrderCommand): Promise<void> {
+    const order = await this.orderRepo.findById(command.orderId);
+    const customer = await this.customerRepo.findById(command.customerId);
+
+    // ✅ "Tell, Don't Ask": The aggregate root evaluates its items and guards its own invariants
+    order.applyPromotionalDiscount(customer.region);
+
+    await this.orderRepo.save(order);
+  }
+}
+
+// Inside the Aggregate Root (Information Expert):
+class Order {
+  public applyPromotionalDiscount(region: Region): void {
+    if (this._status !== OrderStatus.Draft) {
+      throw new CannotModifyFinalizedOrderException(this._id);
+    }
+    if (!region.isEligibleForPromotions()) return;
+
+    for (let i = 0; i < this._items.length; i++) {
+      if (this._items[i].isEligibleForDiscount()) {
+        this._items[i] = this._items[i].applyDiscountPercentage(10);
+      }
+    }
+    this.recalculateTotal(); // Self-contained invariant protection
+  }
+}
+```
+
+---
+
+### 8.2 Interface Segregation Principle (ISP): Focused Ports vs. The "God Repository"
+
+The **Interface Segregation Principle (ISP)** requires that clients should not be forced to depend on interfaces they do not use. In architecture, a common pitfall is the generic "God Repository" that forces use-case handlers to couple to dozens of unused database capabilities.
+
+#### ❌ Anti-Pattern: The Generic "God Repository" Interface
+```typescript
+// ❌ Violates ISP: mixes transactional write methods, raw queries, pagination, and ORM internals
+interface IRepository<T> {
+  findById(id: string): Promise<T>;
+  findAll(): Promise<T[]>;
+  findByPredicate(predicate: (entity: T) => boolean): Promise<T[]>;
+  getQueryable(): IQueryable<T>; // Leaks ORM expression trees into domain!
+  attach(entity: T): void;       // Leaks persistence tracking mechanics
+  bulkInsert(entities: T[]): Promise<void>;
+  count(): Promise<number>;
+}
+```
+
+#### ✅ Clean Pattern: Role-Specific Domain Ports
+```typescript
+// ✅ Adheres to ISP: minimal, ubiquitous-language interfaces tailored strictly to use cases
+interface OrderRepositoryPort {
+  findById(id: OrderId): Promise<Order | null>;
+  save(order: Order): Promise<void>;
+  nextIdentity(): OrderId;
+}
+
+// Separate Read-Side Port or Direct Projection Handler for Query use cases (CQRS):
+interface OrderSummaryReaderPort {
+  getCustomerOrderSummaries(customerId: CustomerId, limit: number): Promise<OrderSummaryDto[]>;
+}
+```
+
+---
+
+### 8.3 Liskov Substitution Principle (LSP): Testability via Contract-Compliant Fakes
+
+Under the **Liskov Substitution Principle (LSP)**, any implementation of an abstraction must be completely swappable without breaking the correctness of the calling code. In Clean Architecture, this enables lightning-fast unit tests using **In-Memory Repository Fakes** instead of heavy database containers or fragile mock assertions (`mock.verify()`).
+
+#### ✅ Clean Pattern: Fully Substitutable In-Memory Fake
+```typescript
+// In-memory fake implementing OrderRepositoryPort with exact semantic fidelity:
+export class InMemoryOrderRepository implements OrderRepositoryPort {
+  private readonly storage = new Map<string, Order>();
+
+  async findById(id: OrderId): Promise<Order | null> {
+    const order = this.storage.get(id.value);
+    if (!order) return null;
+    // LSP contract guarantee: returns a cloned reconstitution to prevent shared in-memory references
+    return Order.reconstitute(
+      order.id,
+      order.customerId,
+      order.status,
+      order.total,
+      order.items,
+      order.version
+    );
+  }
+
+  async save(order: Order): Promise<void> {
+    // Concurrency check simulation (OCC):
+    const existing = this.storage.get(order.id.value);
+    if (existing && existing.version !== order.version) {
+      throw new ConcurrencyException("Optimistic lock conflict");
+    }
+    this.storage.set(order.id.value, order);
+  }
+
+  nextIdentity(): OrderId {
+    return new OrderId(crypto.randomUUID());
+  }
+}
+
+// ── TEST: Tests use case logic in milliseconds with ZERO database or Docker setup ──
+describe("PlaceOrderService", () => {
+  it("finalizes order and saves state via substitutable port", async () => {
+    const fakeOrderRepo = new InMemoryOrderRepository();
+    const fakeCustomerRepo = new InMemoryCustomerRepository();
+    const pricingService = new PricingService();
+    const fakePublisher = new InMemoryEventPublisher();
+
+    const service = new PlaceOrderService(fakeOrderRepo, fakeCustomerRepo, pricingService, fakePublisher);
+
+    // Seed test state directly through domain methods
+    const order = Order.create(fakeOrderRepo.nextIdentity(), new CustomerId("cust-1"));
+    order.addItem(new Product("prod-1", "Widget", Money.cents(1000, "USD"), 5), 2);
+    await fakeOrderRepo.save(order);
+
+    await service.execute({ orderId: order.id.value, customerId: "cust-1" });
+
+    const saved = await fakeOrderRepo.findById(order.id);
+    expect(saved?.status).toBe(OrderStatus.Finalized);
+  });
+});
+```
+
+---
+
+### 8.4 Creator & Aggregate Roots vs. Free-Floating Child Entities
+
+The **Creator** pattern (GRASP) guides the decision of who should create an instance. In Domain-Driven Design, child entities (such as `OrderItem`) must be created and managed exclusively by their containing **Aggregate Root** (`Order`), ensuring that invariants (pricing, quantity bounds, status checks) are never bypassed.
+
+```typescript
+// ── CHILD ENTITY: Hidden within the aggregate boundary ──
+class OrderItem {
+  private readonly _id: OrderItemId;
+  private readonly _productId: ProductId;
+  private readonly _unitPrice: Money;
+  private _quantity: number;
+
+  // Package-private or internal constructor: only Order should instantiate
+  /** @internal */
+  public constructor(id: OrderItemId, productId: ProductId, unitPrice: Money, quantity: number) {
+    this._id = id;
+    this._productId = productId;
+    this._unitPrice = unitPrice;
+    this._quantity = quantity;
+  }
+
+  public get subtotal(): Money {
+    return this._unitPrice.times(this._quantity);
+  }
+
+  /** @internal */
+  public increaseQuantity(additional: number): void {
+    this._quantity += additional;
+  }
+
+  // Read-only getters...
+  public get id(): OrderItemId { return this._id; }
+  public get productId(): ProductId { return this._productId; }
+  public get quantity(): number { return this._quantity; }
+}
+
+// ── AGGREGATE ROOT: Acts as Creator and Consistency Boundary ──
+class Order {
+  // External clients NEVER call `new OrderItem()` or access `OrderItemRepository`!
+  public addItem(product: Product, quantity: number): void {
+    if (this._status !== OrderStatus.Draft) {
+      throw new CannotModifyFinalizedOrderException(this._id);
+    }
+    
+    // Creator pattern: Order creates and tracks OrderItem
+    const existing = this._items.find(i => i.productId.equals(product.id));
+    if (existing) {
+      existing.increaseQuantity(quantity);
+    } else {
+      const newItem = new OrderItem(new OrderItemId(crypto.randomUUID()), product.id, product.price, quantity);
+      this._items.push(newItem);
+    }
+    
+    this.recalculateTotal(); // Immediate transactional consistency
+  }
+}
+```
+
+---
+
+### 8.5 Pure Fabrication: Balancing Domain Purity and Clean Architecture
+
+A **Pure Fabrication** (GRASP) is a class that does not represent a concept in the business problem domain, but is invented to achieve **High Cohesion**, **Low Coupling**, and **Single Responsibility**.
+
+When applying Clean Architecture:
+1. **Domain Services (`PricingService`):** Invented when a business calculation spans multiple entities (Order and Customer) so neither entity is coupled to the other.
+2. **Data Mappers (`OrderMapper`):** Invented so the `Order` entity remains 100% pure TypeScript/Python/Java, with zero knowledge of database tables, column names, or SQL types.
+3. **Factories & Specifications (`OrderCanBeCancelledSpecification`):** Invented to encapsulate complex validation predicates or creation mechanics outside the entity body.
+

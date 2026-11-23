@@ -217,7 +217,7 @@ src/
 
 For smaller entities or when striving for maximum locality (cohesion), the formal `Application/`, `Infrastructure/`, and `Presentation/` subfolders within slices are omitted. 
 
-When multiple channels exist, `[Channel]` folders group the feature endpoints, while `_Shared/` prevents duplication and lateral imports:
+When multiple channels exist, `[Channel]` folders group the feature endpoints, while `_Shared/` prevents duplication and lateral imports (in strictly flat single-folder setups, use prefixing instead: `[Channel][EntityName]Controller.{ext}`, e.g. `AdminUserController.{ext}`):
 
 ```text
 src/
