@@ -503,11 +503,13 @@ A common source of confusion in DDD is where validation belongs. Validation oper
 
 | Dimension | Syntactic Validation (Input Validation) | Semantic Validation (Domain Invariants) |
 |---|---|---|
-| **Location** | **Presentation Layer** (DTO, Form, Router) | **Domain Layer** (Entities, Value Objects) |
+| **Location** | **Presentation Layer** (DTO, Form, Router) *(or **Application Layer** Command/Query DTO in CQRS)* | **Domain Layer** (Entities, Value Objects) |
 | **Tooling** | Zod, Pydantic, FluentValidation, FormRequest | Pure language code (classes, methods, exceptions) |
 | **Question Asked** | *"Is the incoming payload structurally well-formed?"* | *"Is this business operation permitted in current state?"* |
 | **Scope** | Data types, required fields, string length, regex patterns, email formats, numeric ranges | Business rules, state machine transitions, balances, stock availability, credit limits |
 | **Failure Response** | HTTP `400 Bad Request` / `422 Unprocessable Entity` | Domain Exception ➔ mapped to HTTP `409 Conflict` / `422` |
+
+> 💡 **CQRS & Application Pipeline Note:** In CQRS architectures, syntactic payload validation may occur either in the Presentation layer (controller/middleware) or upon entry to the Application layer (e.g. via pipeline behaviors, command handler middleware, or constructor validation on Command/Query DTOs). In either case, the fundamental boundary rule holds: syntactic input validation rejects malformed structures before domain entities or domain services are invoked.
 
 ### Code Example: Two-Tier Validation
 
