@@ -69,7 +69,7 @@ Within each bounded context (`[ContextName]`), code can be organized in three st
 2. **Vertical Slices:** Each entity slice contains its own Application, Infrastructure, and Presentation subfolders. Domain remains shared across slices in the context.
 3. **Flat Vertical Slices:** Omits internal layer subfolders within the slice, placing handlers, actions, and DTOs side-by-side.
 
-> **Note on Naming & Casing Flexibility:** Ring directories (`Domain/`, `Application/`, `Infrastructure/`, `Presentation/`) and subfolders (`Ports/`, `_Shared/`) represent conceptual architectural roles. There is zero hard lock-in to literal PascalCase or folder paths: adapt casing (`snake_case`, `kebab-case`, `lowercase`) and idiomatic synonyms (`UseCases/` for `Application/`, `Interfaces/` for `Ports/`, `Delivery/` for `Presentation/`) to your target language and framework conventions.
+> **Note on Naming & Casing Flexibility:** Ring directories (`Domain/`, `Application/`, `Infrastructure/`, `Presentation/`) and subfolders (`Ports/`) represent conceptual architectural roles. There is zero hard lock-in to literal PascalCase or folder paths: adapt casing (`snake_case`, `kebab-case`, `lowercase`) and idiomatic synonyms (`UseCases/` for `Application/`, `Interfaces/` for `Ports/`, `Delivery/` for `Presentation/`) to your target language and framework conventions.
 
 ---
 
@@ -156,8 +156,7 @@ src/
 │   │
 │   ├── Slices/
 │   │   ├── [EntityName]/                       # Entity slice (e.g. User)
-│   │   │   ├── _Shared/                        # Shared assets within this entity (prevents lateral imports)
-│   │   │   │   ├── Components/                 # Shared UI forms (e.g. [EntityName]Form.{ext}) — for UI/Fullstack
+│   │   │   ├── _Shared/                        # Entity-level backend shared (prevents lateral imports)
 │   │   │   │   ├── Schemas/                    # Shared validation schemas
 │   │   │   │   └── Dtos/                       # Base DTOs
 │   │   │   │
@@ -165,7 +164,7 @@ src/
 │   │   │   │   ├── Create[EntityName]/         # Style 1: Feature Subfolder
 │   │   │   │   │   ├── Create[EntityName]Handler.{ext}
 │   │   │   │   │   └── Create[EntityName]Dto.{ext}
-│   │   │   │   ├── Update[EntityName]/         # Style 1: Feature Subfolder (shares _Shared/ Components)
+│   │   │   │   ├── Update[EntityName]/         # Style 1: Feature Subfolder
 │   │   │   │   │   ├── Update[EntityName]Handler.{ext}
 │   │   │   │   │   └── Update[EntityName]Dto.{ext}
 │   │   │   │   └── Get[EntityName]/            # Query use case
@@ -177,17 +176,24 @@ src/
 │   │   │   │
 │   │   │   └── Presentation/                   # Delivery layer with explicit Channels
 │   │   │       ├── Api/
-│   │   │       │   ├── Admin/                  # [Channel] Admin Backoffice
+│   │   │       │   ├── Admin/                  # [Channel] Admin Backoffice API
+│   │   │       │   │   ├── _Shared/            # Intra-channel shared (admin filters, serializers)
 │   │   │       │   │   ├── Create[EntityName]/
 │   │   │       │   │   │   └── Create[EntityName]Action.{ext}
 │   │   │       │   │   └── Update[EntityName]/
 │   │   │       │   │       └── Update[EntityName]Action.{ext}
 │   │   │       │   └── Public/                 # [Channel] Public Portal / Customer API
+│   │   │       │       ├── _Shared/            # Intra-channel shared (public query params)
 │   │   │       │       └── Get[EntityName]/
 │   │   │       │           └── Get[EntityName]Action.{ext}
-│   │   │       ├── Web/                        # HTML views & SSR controllers
-│   │   │       │   ├── Admin/                  # Admin channel views (uses _Shared/Components/[EntityName]Form.{ext})
+│   │   │       ├── Web/                        # HTML views & SSR controllers (for Fullstack)
+│   │   │       │   ├── _Shared/
+│   │   │       │   │   └── Components/         # Cross-channel UI forms (e.g. [EntityName]Form.{ext})
+│   │   │       │   ├── Admin/                  # Admin channel views
+│   │   │       │   │   ├── _Shared/            # Admin-only UI (e.g. AdminUserTable.{ext})
+│   │   │       │   │   └── Edit[EntityName]/   # Uses _Shared/Components/[EntityName]Form.{ext}
 │   │   │       │   └── Public/                 # Public channel views
+│   │   │       │       └── View[EntityName]/
 │   │   │       └── Cli/
 │   │   │           └── [EntityName]Command.{ext}
 │   │   │
@@ -222,11 +228,12 @@ src/
 │   │
 │   ├── Slices/
 │   │   ├── [EntityName]/                       # Flat entity slice
-│   │   │   ├── _Shared/                        # Shared forms, base DTOs, validation schemas
-│   │   │   │   ├── [EntityName]Form.{ext}      # Reusable form component
-│   │   │   │   └── [EntityName]Schema.{ext}
+│   │   │   ├── _Shared/                        # Entity-level shared backend schemas & base DTOs
+│   │   │   │   ├── [EntityName]Schema.{ext}    # Validation schema
+│   │   │   │   └── [EntityName]Dto.{ext}       # Base DTO
 │   │   │   │
 │   │   │   ├── Admin/                          # [Channel] Admin Backoffice
+│   │   │   │   ├── _Shared/                    # Intra-channel shared (admin filters, admin UI)
 │   │   │   │   ├── Create[EntityName]/         # Feature folder
 │   │   │   │   │   ├── Create[EntityName]Action.{ext}
 │   │   │   │   │   ├── Create[EntityName]Handler.{ext}
@@ -237,6 +244,7 @@ src/
 │   │   │   │       └── Update[EntityName]Dto.{ext}
 │   │   │   │
 │   │   │   ├── Public/                         # [Channel] Public Portal / Customer API
+│   │   │   │   ├── _Shared/                    # Intra-channel shared (public query params)
 │   │   │   │   └── Get[EntityName]/
 │   │   │   │       ├── Get[EntityName]Action.{ext}
 │   │   │   │       ├── Get[EntityName]Handler.{ext}
@@ -286,8 +294,8 @@ Presentation ──► Application ──► Domain ◄── Infrastructure
 2. **Ports & Adapters (Dependency Inversion):** Application needs persistence, messaging, or third-party APIs through **Domain Ports** (interfaces in `Domain/Ports/`). Infrastructure implements these interfaces. At compile time, Application never imports Infrastructure.
 3. **No Direct Entity Mutation from Presentation:** Controllers/Actions in `Presentation/` accept input DTOs, invoke Application Services/Handlers, and receive response DTOs. Presentation never queries repositories or mutates domain entities directly.
 4. **Context Isolation:** Bounded contexts never import internal classes from sibling contexts. Cross-context communication is conducted through Application Facades, shared DTOs, or Domain Events via an Anti-Corruption Layer (ACL).
-5. **Channel Isolation:** Within `Presentation/`, channels (`Admin/`, `Public/`) must be isolated. `Public/` code must NEVER import from `Admin/`. Shared presentation logic belongs in `_Shared/` or `Presentation/Shared/`.
-6. **No Lateral Imports in Slices:** When using vertical slices, a feature subfolder must NEVER import from a sibling feature subfolder (e.g., `UpdateUser` never imports from `CreateUser`). Shared forms, schemas, and helpers must be placed in `_Shared/`.
+5. **Channel Isolation:** Within `Presentation/`, channels (`Admin/`, `Public/`) must be isolated. `Public/` code must NEVER import from `Admin/`. Shared presentation logic belongs in each channel's `[Channel]/_Shared/` (intra-channel) or `Presentation/Web/_Shared/` (cross-channel UI).
+6. **No Lateral Imports in Slices:** When using vertical slices, a feature subfolder must NEVER import from a sibling feature subfolder (e.g., `UpdateUser` never imports from `CreateUser`). Shared validation schemas and base DTOs belong in entity-level `_Shared/` (`Slices/[EntityName]/_Shared/`), while shared UI forms belong strictly in `Presentation/Web/_Shared/Components/` or channel `_Shared/`.
 
 ---
 

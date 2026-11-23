@@ -245,16 +245,15 @@ src/[ModuleName]/                           src/[ModuleName]/
 ├── Controllers/                            ├── Slices/
 │   └── UserController.{ext} ──── split ──> │   ├── User/
 │                                           │   │   ├── _Shared/                     # Prevents lateral feature imports
-├── Services/                               │   │   │   ├── Components/              # Reusable UI (UserForm.{ext})
-│   ├── UserService.{ext} ─────── split ──> │   │   │   ├── Schemas/                 # Validation schemas
-│   ├── PlaceOrderService.{ext}             │   │   │   └── Dtos/                    # Base DTOs
-│   └── CreateUserDto.{ext}                 │   │   │
-│                                           │   │   ├── CreateUser/                  # Isolated feature folder (Style 1)
-├── Repositories/                           │   │   │   ├── CreateUserAction.{ext}
-│   └── UserRepository.{ext} ──── keep ───> │   │   │   ├── CreateUserHandler.{ext}
-│                                           │   │   │   └── CreateUserDto.{ext}
+├── Services/                               │   │   │   ├── Schemas/                 # Validation schemas
+│   ├── UserService.{ext} ─────── split ──> │   │   │   └── Dtos/                    # Base DTOs
+│   ├── PlaceOrderService.{ext}             │   │   │
+│   └── CreateUserDto.{ext}                 │   │   ├── CreateUser/                  # Isolated feature folder (Style 1)
+│                                           │   │   │   ├── CreateUserAction.{ext}
+├── Repositories/                           │   │   │   ├── CreateUserHandler.{ext}
+│   └── UserRepository.{ext} ──── keep ───> │   │   │   └── CreateUserDto.{ext}
 └── Models/                                 │   │   │
-    └── User.{ext} ────────────── keep ───> │   │   ├── UpdateUser/                  # Uses _Shared/Components/UserForm
+    └── User.{ext} ────────────── keep ───> │   │   ├── UpdateUser/                  # Isolated feature folder (Style 1)
                                             │   │   │   ├── UpdateUserAction.{ext}
                                             │   │   │   ├── UpdateUserHandler.{ext}
                                             │   │   │   └── UpdateUserDto.{ext}
@@ -278,8 +277,8 @@ src/[ModuleName]/                           src/[ModuleName]/
 Inside the target module or context, create the `Slices/` directory and subdirectories for each entity (e.g. `Slices/User/`, `Slices/Order/`).
 
 #### Step 2: Establish the `_Shared/` Directory (Prevent Lateral Imports)
-Before splitting features, create `Slices/[EntityName]/_Shared/`. Move shared UI forms (e.g., `[EntityName]Form.{ext}` into `_Shared/Components/`), validation schemas (`_Shared/Schemas/`), and shared base DTOs (`_Shared/Dtos/`) here.
-> **Cardinal Rule:** Feature subfolders must **never** import from sibling feature subfolders (e.g., `UpdateUser` must never import from `CreateUser`). If assets are shared, they belong in `_Shared/`.
+Before splitting features, create `Slices/[EntityName]/_Shared/`. Move shared validation schemas (`_Shared/Schemas/`) and shared base DTOs (`_Shared/Dtos/`) here. Reusable UI components belong in presentation shared (`Presentation/Web/_Shared/Components/` or channel `_Shared/`).
+> **Cardinal Rule:** Feature subfolders must **never** import from sibling feature subfolders (e.g., `UpdateUser` must never import from `CreateUser`). If assets are shared, they belong in entity-level `_Shared/` or presentation `_Shared/`.
 
 #### Step 3: Decompose Unified Controllers into Discrete Actions
 Break the methods of `[EntityName]Controller` into single-responsibility Action classes:
@@ -469,7 +468,7 @@ await this.orderRepo.save(order); // Persistence handled by repository adapter
 - ❌ **The Distributed Monolith:** Breaking an application into multiple services while keeping a shared database, tight compile-time shared libraries, or synchronous REST call chains. You get all the operational pain of microservices with none of the autonomy benefits.
 - ❌ **Premature Evolution (Skipping Ladder Rungs):** Jumping from a simple Layered prototype directly into Microservices or full CQRS before understanding domain boundaries.
 - ❌ **Dual-Write without Outbox:** Updating a local database and publishing a message to a broker in two separate uncoordinated calls. If the broker call fails, data state is permanently corrupted. Always use the Transactional Outbox pattern.
-- ❌ **Lateral Imports during Slice Migration:** Decomposing controllers into feature folders, but having `UpdateUser` import components directly from `CreateUser`. Always elevate shared components to `_Shared/`.
+- ❌ **Lateral Imports during Slice Migration:** Decomposing controllers into feature folders, but having `UpdateUser` import components or schemas directly from `CreateUser`. Always elevate shared schemas to entity `_Shared/` and shared UI forms to presentation `_Shared/Components/` or channel `_Shared/`. Never import UI forms into application handlers.
 - ❌ **Monorepo Dependency Tangling:** Merging repositories into a monorepo and allowing Service A to import internal classes or database entities directly from Service B. Monorepo services must communicate strictly via `Libs/Contracts/` or network calls.
 - ❌ **Half-Baked Data Mapper:** Creating a repository adapter, but continuing to keep `@Column()` decorators and database foreign keys on the domain entity itself. True Data Mapper requires complete domain purity.
 - ❌ **Copy-Paste Migration:** Copying entire monolithic helper libraries and models into new services without auditing dependencies, introducing hidden circular coupling across network boundaries.

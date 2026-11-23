@@ -278,10 +278,10 @@ When developers use ORM relationships (`@ManyToOne`, `@OneToMany`, EF Core navig
 Do **not** pass database transaction handles (e.g., `pg.Client`, `EntityManager`, `sql.Tx`) through domain layers. To coordinate multi-repository operations atomically:
 
 ### Unit of Work Pattern (or Transaction Runner)
-Define an application-level transaction runner interface in `Application/Ports/`:
+Define a transaction runner interface in `Domain/Ports/` (or `Application/Ports/`):
 
 ```typescript
-// src/shared/application/UnitOfWorkPort.ts
+// src/ordering/domain/ports/unit-of-work.port.ts
 export interface UnitOfWorkPort {
   runInTransaction<T>(operation: () => Promise<T>): Promise<T>;
 }

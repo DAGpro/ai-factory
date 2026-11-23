@@ -827,17 +827,17 @@ EXISTING_PROJECT_SUGGESTIONS_SECTION="$(awk '
     /^Present these as `AskUserQuestion` with multi-select options:$/ { if (capture) exit }
 ' "$AIF_SKILL")"
 AIF_ARCH_DESCRIPTION_SECTION="$(awk '
-    /^### Step 3: Update DESCRIPTION\.md$/ { capture=1 }
+    /^#### 9\.1 DESCRIPTION\.md$/ { capture=1 }
     capture { print }
-    /^### Step 4: Update AGENTS\.md$/ { if (capture) exit }
+    /^#### 9\.2 AGENTS\.md$/ { if (capture) exit }
 ' "$AIF_ARCH_SKILL")"
 AIF_ARCH_AGENTS_SECTION="$(awk '
-    /^### Step 4: Update AGENTS\.md$/ { capture=1 }
+    /^#### 9\.2 AGENTS\.md$/ { capture=1 }
     capture { print }
-    /^### Step 5: Confirm$/ { if (capture) exit }
+    /^### Step 10: Validate and report$/ { if (capture) exit }
 ' "$AIF_ARCH_SKILL")"
 AIF_ARCH_CONFIRM_SECTION="$(awk '
-    /^### Step 5: Confirm$/ { capture=1 }
+    /^### Step 10: Validate and report$/ { capture=1 }
     capture { print }
     /^## Artifact Ownership$/ { if (capture) exit }
 ' "$AIF_ARCH_SKILL")"
@@ -1402,6 +1402,46 @@ if printf '%s\n' "$AIF_ARCH_OWNERSHIP_SECTION" | grep -Fq '.ai-factory/DESCRIPTI
     fail "default DESCRIPTION path leaked into /aif-architecture Artifact Ownership"
 else
     pass "no default DESCRIPTION path leak in /aif-architecture Artifact Ownership"
+fi
+
+if grep -Fq '--style=subfolders|unified' "$AIF_ARCH_SKILL" \
+   && grep -Fq '--policy=adapt|strict' "$AIF_ARCH_SKILL" \
+   && grep -Fq '--existing=overwrite|merge|skip' "$AIF_ARCH_SKILL" \
+   && grep -Fq 'microservices[-single|-monorepo]' "$AIF_ARCH_SKILL"; then
+    pass "/aif-architecture declares modern CLI flags and microservices variants"
+else
+    fail "/aif-architecture CLI flags or variants missing in argument-hint"
+fi
+
+if grep -Fq 'Read `.ai-factory/skill-context/aif-architecture/SKILL.md`' "$AIF_ARCH_SKILL" \
+   && grep -Fq 'the skill-context rule wins' "$AIF_ARCH_SKILL" \
+   && grep -Fq 'skill-context rules apply to ALL outputs of this skill' "$AIF_ARCH_SKILL"; then
+    pass "/aif-architecture enforces skill-context precedence and augmentation contract"
+else
+    fail "/aif-architecture skill-context enforcement contract missing"
+fi
+
+if grep -Fq '## Regeneration' "$AIF_ARCH_SKILL" \
+   && grep -Fq '--existing=merge' "$AIF_ARCH_SKILL"; then
+    pass "/aif-architecture template contains regeneration and merge contract"
+else
+    fail "/aif-architecture template missing regeneration or merge contract"
+fi
+
+ARCH_REFS_OK=1
+for ref_file in INDEX.md STACK-BLUEPRINTS.md LAYERED.md STRUCTURED-MODULES.md \
+                EXPLICIT-ARCHITECTURE.md MICROSERVICES.md DOMAIN-MODELING.md \
+                PERSISTENCE-AND-ORM.md MIGRATIONS.md; do
+    if [[ ! -f "$ROOT_DIR/skills/aif-architecture/references/$ref_file" ]]; then
+        ARCH_REFS_OK=0
+        break
+    fi
+done
+
+if [[ $ARCH_REFS_OK -eq 1 ]] && ! grep -Fq 'references/architecture.md' "$AIF_ARCH_SKILL"; then
+    pass "all 9 modular architecture references exist and legacy architecture.md is not referenced"
+else
+    fail "modular architecture references missing or legacy architecture.md referenced"
 fi
 
 # /aif-commit active Commit Plan grouping contract

@@ -30,7 +30,7 @@ Within each module, code can be organized in two ways:
 
 > 💡 **Transitioning between variants:** If a module outgrows Technical Layers due to team scale or merge conflicts, see the step-by-step refactoring guide: **[Architecture Migrations — Technical Layers to Vertical Slices](./MIGRATIONS.md#5-migration-technical-layers--vertical-slices-intra-pattern-evolution)**.
 
-> **Note on Naming & Casing Flexibility:** Directory names (e.g. `Controllers/`, `Services/`, `_Shared/Components/`, `Slices/`) are architectural abstractions defining layer roles and boundaries. Adapt casing and structure to your stack (e.g. `_shared/components/` in Next.js, `_shared/` in Python `snake_case`, lowercase in Go). There is no hard lock-in to literal PascalCase.
+> **Note on Naming & Casing Flexibility:** Directory names (e.g. `Controllers/`, `Services/`, `Slices/`, `_Shared/`) are architectural abstractions defining layer roles and boundaries. Adapt casing and structure to your stack (e.g. `_shared/` in Python `snake_case`, lowercase in Go). There is no hard lock-in to literal PascalCase.
 
 ---
 
@@ -81,9 +81,8 @@ src/
 ├── [ModuleName]/                               # ── FEATURE MODULE ──
 │   ├── Slices/                                 # Slices grouped by entity and process
 │   │   ├── [EntityNameA]/                      # Entity slice (e.g., User)
-│   │   │   # ── Shared Assets within this entity (prevents lateral imports) ──
+│   │   │   # ── Shared Backend Assets within this entity (prevents lateral imports) ──
 │   │   │   ├── _Shared/
-│   │   │   │   ├── Components/                 # Shared UI forms (e.g. [EntityNameA]Form.{ext}) — for UI/Fullstack
 │   │   │   │   ├── Schemas/                    # Shared validation schemas
 │   │   │   │   └── Dtos/                       # Base DTOs
 │   │   │   │
@@ -92,7 +91,7 @@ src/
 │   │   │   │   ├── Create[EntityNameA]Action.{ext}
 │   │   │   │   ├── Create[EntityNameA]Handler.{ext}
 │   │   │   │   └── Create[EntityNameA]Dto.{ext}
-│   │   │   ├── Update[EntityNameA]/            # Dedicated folder for Update use case (uses _Shared/ Components)
+│   │   │   ├── Update[EntityNameA]/            # Dedicated folder for Update use case
 │   │   │   │   ├── Update[EntityNameA]Action.{ext}
 │   │   │   │   ├── Update[EntityNameA]Handler.{ext}
 │   │   │   │   └── Update[EntityNameA]Dto.{ext}

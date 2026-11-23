@@ -154,13 +154,13 @@ All folder structures across all specification modules use consistent placeholde
 | `[ServiceName]` | An independently deployable microservice | `OrderService`, `PaymentGateway` | Microservice root folder |
 | `[Channel]` | A delivery channel/audience segment distinguishing access to the same entity | `Admin`, `Public` | Delivery folders (`Api/`, `Web/`) — rules consolidated in **Channel handling** below |
 | `[AggregateName]`| An aggregate root grouped with its child entities in a dedicated folder | `Order` (with `OrderItem`), `Invoice` | `Domain/[AggregateName]/` folder (Explicit Architecture) |
-| `_Shared/` | Shared assets within an entity slice (UI components, schemas, base DTOs) to prevent lateral imports | `_Shared/Components/`, `_Shared/Schemas/` | Entity slice root (`Slices/[EntityName]/_Shared/`) |
+| `_Shared/` | Shared assets preventing lateral imports: entity-level for schemas/base DTOs (`Slices/[EntityName]/_Shared/`), channel-level for intra-channel assets (`[Channel]/_Shared/`), and presentation-level for cross-channel UI (`Presentation/Web/_Shared/Components/`) | `_Shared/Schemas/`, `_Shared/Components/`, `[Channel]/_Shared/` | Entity root or presentation channel folder |
 | `{ext}` | The project's file extension, substituted per stack conventions | `.ts`, `.php`, `.go`, `.py` | File suffix in all folder trees |
 
 ### Architectural Abstraction vs. Idiomatic Casing (Zero Hard Lock-in)
 
 > **Core Principle for AI Agents and Engineers:**  
-> The PascalCase folder names (e.g. `Controllers/`, `Services/`, `Domain/`, `Application/`, `_Shared/Components/`) used throughout this reference are **architectural abstractions** used for universal readability. They define **conceptual layer roles, boundary responsibilities, and dependency directions** — NOT rigid literal folder paths or strict casing mandates.
+> The PascalCase folder names (e.g. `Controllers/`, `Services/`, `Domain/`, `Application/`, `Presentation/`) used throughout this reference are **architectural abstractions** used for universal readability. They define **conceptual layer roles, boundary responsibilities, and dependency directions** — NOT rigid literal folder paths or strict casing mandates.
 
 When generating `.ai-factory/ARCHITECTURE.md` or scaffolding project directories:
 1. **Directory and File Casing Must Follow Stack Idioms:**
@@ -190,37 +190,48 @@ Every structural variant organizes use cases in one of two styles, chosen once a
 
 #### Shared Assets within Style 1 (CRUD & Form Sharing)
 When multiple feature subfolders of the same entity share assets (e.g., a shared CRUD form template, base DTO, or validation schema between `Create[EntityName]` and `Update[EntityName]`):
-1. **Entity-Level `_Shared/` Directory:** Shared assets MUST be placed in an entity-level `_Shared/` folder (with `Components/` for UI) directly inside `Slices/[EntityName]/`. The leading underscore pins the directory to the top of file trees in IDEs, while PascalCase maintains structural uniformity.
-2. **Strict Rule: No Lateral Feature Imports:** A feature subfolder must **NEVER** import directly from a sibling feature subfolder (e.g., `UpdateUser` MUST NOT import from `CreateUser`). If two features share a component, schema, or helper, it MUST be elevated to `Slices/[EntityName]/_Shared/`.
-3. **Backend vs Frontend Separation:**
-   - **Backend Handlers:** Stay strictly separate (`CreateUserHandler` and `UpdateUserHandler` have different authorization rules, validation, and domain events).
-   - **Frontend UI Forms:** The shared form component (e.g., `[EntityName]Form.{ext}`) lives in `_Shared/Components/` and is consumed by both `CreateUser` and `UpdateUser` presentation actions.
+1. **Application Layer Purity:** The `Application/` layer contains only use-case orchestration (`[FeatureName]/` folders containing handlers and use-case DTOs). Handlers must **NEVER** contain or import UI components, forms, templates, or HTML markup.
+2. **Entity-Level Backend `_Shared/` Directory:** Shared backend assets MUST be placed in `Slices/[EntityName]/_Shared/` (e.g. `_Shared/Schemas/` for validation schemas, `_Shared/Dtos/` for base DTOs).
+3. **Presentation Layer & Channel-Level `_Shared/` Directories:**
+   - **Cross-Channel Presentation `_Shared/` (`Presentation/Web/_Shared/Components/`):** In UI/Fullstack apps, shared form components (e.g. `[EntityName]Form.{ext}`) consumed across multiple channels (Admin & Public) live in `Presentation/Web/_Shared/Components/`.
+   - **Intra-Channel `_Shared/` (`Presentation/[Delivery]/[Channel]/_Shared/`):** Channel-specific shared assets (e.g. admin-only tables, filter bars, channel DTOs/serializers) live inside that channel's own `_Shared/` folder.
+4. **Strict Rule: No Lateral Feature Imports:** A feature subfolder must **NEVER** import directly from a sibling feature subfolder (e.g., `UpdateUser` MUST NOT import from `CreateUser`). Shared backend assets must be elevated to entity-level `_Shared/`, and shared UI assets to the appropriate presentation `_Shared/` scope.
 
 ### Channel Handling
 `[Channel]` distinguishes multiple audiences served by the same delivery folder. It applies only where the trees show delivery folders (`Api/`, `Web/` in the Explicit Architecture variants and the single-microservice `Api/`), and only when the project serves multiple audiences — omit `[Channel]/` entirely for single-channel projects:
-- **Style 1:** A `[Channel]/` folder sits above the feature folders: `[Channel]/[FeatureName]/[FeatureName]Action.{ext}`.
+- **Style 1:** A `[Channel]/` folder sits above the feature folders: `[Channel]/[FeatureName]/[FeatureName]Action.{ext}`. Each channel maintains its own `[Channel]/_Shared/` for intra-channel helpers and serializers.
 - **Style 2, Explicit architectural layers and vertical slice variants:** Channel folders sit under `Api/`/`Web/`: `[Channel]/[EntityName]Controller.{ext}`.
 - **Style 2, flat slices:** Flat stays flat — no channel folders; the channel becomes a file prefix: `[Channel][EntityName]Controller.{ext}` (e.g. `AdminUserController.{ext}`).
 
 #### Multi-Channel & Shared Scope Example (Style 1):
 ```text
 Slices/[EntityName]/
-├── _Shared/                                    # Shared across features & channels within this entity
-│   ├── Components/                             # Reusable UI (e.g. [EntityName]Form.{ext}) — for UI/Fullstack
-│   └── Schemas/                                # Reusable validation schemas
-├── Application/
+├── _Shared/                                    # Entity-level backend shared (schemas, base DTOs)
+│   ├── Schemas/                                # Reusable validation schemas (e.g. Zod, Pydantic)
+│   └── Dtos/                                   # Shared base DTO types
+├── Application/                                # Use-case orchestration
 │   ├── CreateUser/CreateUserHandler.{ext}      # Separate use cases
 │   └── UpdateUser/UpdateUserHandler.{ext}
 └── Presentation/
-    └── Api/
-        ├── Admin/                              # [Channel] Admin (Backoffice)
-        │   ├── CreateUser/CreateUserAction.{ext}
-        │   └── ListUsers/ListUsersAction.{ext}
-        └── Public/                             # [Channel] Public (Storefront / Self-service)
-            ├── GetProfile/GetProfileAction.{ext}
-            └── UpdateProfile/UpdateProfileAction.{ext}
+    ├── Api/
+    │   ├── Admin/                              # [Channel] Admin (Backoffice API)
+    │   │   ├── _Shared/                        # Intra-channel shared (admin filters, serializers)
+    │   │   ├── CreateUser/CreateUserAction.{ext}
+    │   │   └── ListUsers/ListUsersAction.{ext}
+    │   └── Public/                             # [Channel] Public (Storefront API)
+    │       ├── _Shared/                        # Intra-channel shared (public query params)
+    │       ├── GetProfile/GetProfileAction.{ext}
+    │       └── UpdateProfile/UpdateProfileAction.{ext}
+    └── Web/                                    # UI / SSR Delivery (for Fullstack apps)
+        ├── _Shared/
+        │   └── Components/                     # Cross-channel UI forms (e.g. [EntityName]Form.{ext})
+        ├── Admin/                              # [Channel] Admin Web Views
+        │   ├── _Shared/                        # Admin-only UI (e.g. AdminUserTable.{ext})
+        │   └── EditUser/EditUserView.{ext}     # Uses _Shared/Components/[EntityName]Form
+        └── Public/                             # [Channel] Public Web Views
+            └── EditProfile/EditProfileView.{ext}
 ```
-> **Channel Isolation Rule:** The `Public/` channel must NEVER import files from the `Admin/` channel. Cross-channel shared presentation logic belongs in `_Shared/` or `Presentation/Shared/`.
+> **Channel Isolation Rule:** The `Public/` channel must NEVER import files from the `Admin/` channel. Cross-channel shared presentation logic belongs in `Presentation/Web/_Shared/Components/`, while channel-specific shared assets stay inside that channel's `[Channel]/_Shared/`.
 
 ### Role Mapping Across Styles
 `[FeatureName]Action` fills the Controller role (delivery mechanism), `[FeatureName]Handler` fills the Service/Application-Service role (use-case logic), and `[EntityName]Repository` fills the data-access role. Every dependency rule expressed with Controller/Service vocabulary (strict downward flow, no layer skipping, inward dependencies) applies identically to the Action/Handler files — and to their `[FeatureName]Controller` / `[FeatureName]Service` equivalents in the variants whose trees use that naming (Structured Modules Technical Layer, Microservices): an Action (or Controller) must never bypass the Handler (or Service) to call a Repository directly.

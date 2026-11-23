@@ -32,6 +32,26 @@ Precedence: individual > build (when applicable) > global > skill defaults; reta
 These layers customize workflow; they do not replace the project's rules/architecture hierarchy or relax explicit requirements, ownership, scope, safety/privacy, validation, or approval boundaries. Report conflicts with those boundaries instead of overriding them.
 `global` is a project-local layer, not home-directory configuration. Custom/extension skills do not automatically use it.
 
+**Read `.ai-factory/skill-context/aif-architecture/SKILL.md`** — MANDATORY if the file exists.
+
+This file contains project-specific rules accumulated by `/aif-evolve` from patches,
+codebase conventions, and tech-stack analysis. These rules are tailored to the current project.
+
+**How to apply skill-context rules:**
+- Treat them as **project-level overrides** for this skill's general instructions
+- When a skill-context rule conflicts with a general rule written in this SKILL.md,
+  **the skill-context rule wins** (more specific context takes priority — same principle as nested CLAUDE.md files)
+- When there is no conflict, apply both: general rules from SKILL.md + project rules from skill-context
+- Do NOT ignore skill-context rules even if they seem to contradict this skill's defaults —
+  they exist because the project's experience proved the default insufficient
+- **CRITICAL:** skill-context rules apply to ALL outputs of this skill — including the
+  ARCHITECTURE.md template. The template in this SKILL.md is a **base structure**. If a skill-context
+  rule says "architecture doc MUST include X" or "MUST cover section Y" — you MUST augment the
+  template accordingly. Generating ARCHITECTURE.md that violates skill-context rules is a bug.
+
+**Enforcement:** After generating any output artifact, verify it against all skill-context rules.
+If any rule is violated — fix the output before presenting it to the user.
+
 Generate the resolved architecture artifact (default `.ai-factory/ARCHITECTURE.md`; `paths.architecture` overrides) with architecture decisions tailored to the project.
 
 ## Workflow
@@ -63,6 +83,7 @@ Execute the steps below in order. Do not write the architecture artifact or upda
    - Otherwise, ask one focused question at a time in interactive mode. Start with the missing project purpose/type, then ask about the principal technology stack, then material domain or operational constraints. Ask about team size or expected scale only when those facts are needed and are not available.
    - In non-interactive mode, return `BLOCKED` with the specific missing context. Do not infer a project type or recommend a pattern without sufficient evidence.
 9. Record whether the resolved architecture path exists and whether it is a regular file. If the path exists but is a directory, device, socket, or other non-regular object, return `BLOCKED`; do not attempt to overwrite it. Do not modify the artifact in this step.
+10. Read `.ai-factory/skill-context/aif-architecture/SKILL.md` and `.ai-factory/skill-context/global-skill-context.md` if they exist. If an existing skill-context file cannot be read, return `BLOCKED` with its path. Extract all project-specific rules and constraints so they govern decision resolution, artifact generation, and validation.
 
 Do not read or write unrelated configuration keys.
 
@@ -131,8 +152,9 @@ Apply these sources in descending order of authority:
 
 1. Explicit, valid choices supplied in the current skill invocation, including its arguments and accompanying user message.
 2. Explicit choices or clarifications supplied by the user later during this same architecture run.
-3. The workflow's detection rules applied to repository evidence.
-4. Declared defaults in this skill and its references.
+3. Project-specific rules from skill-context (`aif-architecture/SKILL.md` > `global-skill-context.md`).
+4. The workflow's detection rules applied to repository evidence.
+5. Declared defaults in this skill and its references.
 
 Do not reuse choices from earlier, separate architecture runs unless the user explicitly repeats them in the current run. A lower-priority source must never override a higher-priority choice. Within the same priority level, use the latest unambiguous explicit user instruction in the current architecture run. For repeated command options, use the last valid occurrence as specified in Step 3.1. If chronology does not resolve conflicting explicit choices, ask one focused question in interactive mode or return `BLOCKED` in non-interactive mode. Configuration values are authoritative only for the configuration keys explicitly resolved in Step 0; they do not silently select a pattern, variant, style, or alignment policy. Do not infer approval from a default, recommendation, or preselected option.
 
@@ -298,7 +320,7 @@ Layered Architecture has no style choice. It always uses unified per-entity Cont
 
 For all other patterns, use one style consistently throughout the generated folder tree:
 
-- **Style 1 — Feature Subfolders:** each use case has its own `[FeatureName]/` folder in every layer it touches, including delivery. Put its use-case DTO in the corresponding feature folder. Shared assets belong in the entity-level `_Shared/` location prescribed by `references/INDEX.md`; feature folders must not import directly from sibling feature folders.
+- **Style 1 — Feature Subfolders:** each use case has its own `[FeatureName]/` folder in every layer it touches, including delivery. Put its use-case DTO in the corresponding feature folder. Shared backend schemas and base DTOs belong in entity-level `_Shared/` (`Slices/[EntityName]/_Shared/`), intra-channel assets in `[Channel]/_Shared/`, and cross-channel UI in `Presentation/Web/_Shared/Components/`, as prescribed by `references/INDEX.md`; feature folders must not import directly from sibling feature folders.
 - **Style 2 — Unified Multi-Action:** use per-entity Controller/Service files and place related DTOs next to the service, following the selected pattern reference.
 
 Resolve style in this order, using an unambiguous explicit user choice of Style 1 or Style 2, whether supplied in natural language or as the last valid `--style` value parsed in Step 3.1. A malformed or unsupported option value is reported and ignored; if no explicit choice remains, style is unspecified.
@@ -419,6 +441,7 @@ Generation rules:
 7. Under Strict, use the quarantine location prescribed by the selected pattern reference. Do not invent a new quarantine convention.
 8. Include only architectural rules supported by the selected references and project evidence. Mark assumptions explicitly.
 9. Keep the artifact actionable. Avoid generic principles that do not change implementation decisions.
+10. Apply all project-specific rules from skill-context (`.ai-factory/skill-context/aif-architecture/SKILL.md` and `global-skill-context.md`). The template is a base structure: if a skill-context rule requires specific sections, principles, constraints, or custom layouts, augment the generated ARCHITECTURE.md accordingly.
 
 #### Required policy-section content
 
@@ -446,23 +469,35 @@ Run this step only after Step 8 has completed successfully. If Step 8 fails, do 
 
 #### 9.1 DESCRIPTION.md
 
-If the resolved DESCRIPTION file exists, add or update one architecture-pointer section in `language.artifacts`.
+If the resolved DESCRIPTION file exists, add or update one architecture-pointer section in resolved `language.artifacts`. Use the resolved architecture path from config, not the default path literal.
+
+```markdown
+## [Localized heading: Architecture]
+[Localized sentence in resolved artifacts language referencing the resolved architecture artifact path for detailed architecture guidelines.]
+[Localized label: Pattern]: [canonical pattern-variant name]
+```
 
 The pointer contains:
-- a localized `## Architecture` heading;
+- a localized heading (Architecture in resolved `language.artifacts`);
 - one sentence referencing the resolved architecture path;
 - a `Pattern:` line naming the canonical pattern and variant.
 
 Find an existing pointer by checking these criteria in priority order:
 1. an actual top-level Markdown section (not text inside a fenced code block) that contains the exact resolved architecture path;
 2. an actual top-level Markdown section that contains the default `.ai-factory/ARCHITECTURE.md` path;
-3. an actual top-level Markdown section whose heading exactly matches the localized `## Architecture` heading text generated for this run and that contains a `Pattern:` line. Do not infer that a differently worded heading is equivalent.
+3. an actual top-level Markdown section whose heading matches the localized architecture heading generated for this run and that contains a `Pattern:` line. Do not infer that a differently worded heading is equivalent.
 
 Within the highest-priority criterion that has a match, update only the first matching section in document order. Preserve all other candidate sections and report them as duplicate or stale pointers. If no section matches, append one new pointer section. Do not update unrelated sections merely because they mention architecture. Write the pointer only after Step 8 succeeds; `skip` never reaches this step.
 
 #### 9.2 AGENTS.md
 
-If root `AGENTS.md` exists, add the resolved architecture path to its `AI Context Files` table.
+If root `AGENTS.md` exists, add the resolved architecture artifact path to the "AI Context Files" table in resolved `language.artifacts`:
+
+```markdown
+| [resolved-architecture-path] | [Localized architecture artifact description in resolved artifacts language] |
+```
+
+If a row already points to the resolved path, leave it; otherwise, update or add the row following these rules:
 
 - Consider only actual Markdown headings and tables, not text inside fenced code blocks. If one or more exact `## AI Context Files` headings exist, use the first such heading in document order. Within that section, reuse the first Markdown table before the next top-level heading whose header cells are exactly `File` and `Purpose`. If no such table exists, add a new `File | Purpose` table at the end of that section, immediately before the next top-level heading; preserve the section's existing prose and tables. Report additional exact `## AI Context Files` headings and additional eligible tables as duplicates; do not modify them.
 - If the heading does not exist, reuse the first Markdown table in document order whose header cells are exactly `File` and `Purpose` and that contains at least one non-empty File cell with a project-relative path. Do not infer suitability from Purpose text alone.
@@ -484,6 +519,7 @@ Before reporting success, validate the result against this checklist:
 - [ ] The dependency rules match the selected pattern reference.
 - [ ] All examples use the project's language and framework.
 - [ ] Domain/model placement matches the selected pattern.
+- [ ] All project-specific rules from skill-context (`.ai-factory/skill-context/aif-architecture/SKILL.md` and global) are satisfied and incorporated.
 - [ ] The alignment-policy content matches the project state: Clean has Code Organization Policy; Existing with discrepancies has exactly one of Adapt or Strict policy sections; Existing and conforming has no additional alignment-policy section.
 - [ ] If the selected policy is Adapt, deviations are described separately from target rules.
 - [ ] If the selected policy is Strict with existing discrepancies, legacy quarantine uses the selected reference's prescribed location.
@@ -493,37 +529,39 @@ Before reporting success, validate the result against this checklist:
 - [ ] Companion pointers were changed only after the architecture artifact write succeeded.
 - [ ] The resolved architecture path does not collide with DESCRIPTION.md or root AGENTS.md.
 
-If a check fails, correct the artifact or companion pointer before presenting success. If it cannot be corrected safely, report failure and identify the affected path. If an artifact write reports failure, inspect the actual path before reporting its state; do not claim that the previous content remains intact unless it was verified. Do not claim validation that was not performed.
+If a check fails or any skill-context rule is violated, correct the artifact or companion pointer before presenting success. If it cannot be corrected safely, report failure and identify the affected path. If an artifact write reports failure, inspect the actual path before reporting its state; do not claim that the previous content remains intact unless it was verified. Do not claim validation that was not performed.
 
-Present the final report in `language.ui`:
+Present the final report in resolved `language.ui`:
 
 ```text
-[Localized completion heading: success or partial completion, matching the actual result]
+[Localized success heading in `language.ui`]
 
-Pattern: [canonical pattern and variant when applicable; under skip, include only if reliably identified in the existing artifact]
-Style: [Style 1 or Style 2; omit for Layered and skip]
-Alignment: [Not applicable / Strict (already conforming) / Adapt / Strict (legacy quarantine); omit under skip]
-Existing artifact: [created / overwritten / merged / skipped]
-Architecture file: [resolved architecture path]
+[Localized pattern label in `language.ui`]: [canonical pattern-variant name]
+[Localized style label in `language.ui`]: [resolved action organization style; omit for Layered and skip]
+[Localized policy label in `language.ui`]: [resolved alignment policy: adapt or strict; omit under skip]
+[Localized existing-file label in `language.ui`]: [created / overwritten / merged / skipped; omit when no existing artifact]
+[Localized file label in `language.ui`]: [resolved architecture path]
 
-Assumptions and warnings:
+[Localized assumptions heading in `language.ui`]:
 - [Detected defaults, unrecognized arguments/flags, mismatches, preserved conflicting sections, or no-op flags.]
 - [Omit this section when there is nothing to report.]
 
-Updated companion files:
+[Localized updated-files heading in `language.ui`]:
 - [Each file actually updated; omit if none.]
 
-Key rules:
+[Localized key-rules heading in `language.ui`]:
 - [Three concise project-specific architectural rules.]
 
-[Closing sentence explaining that workflow skills should follow the generated architecture guidelines.]
+[Localized closing sentence in `language.ui` about workflow skills following these architecture guidelines.]
 ```
 
 Do not report `created`, `overwritten`, or `merged` unless the corresponding write completed. Under `skip`, report `skipped`, omit Style and Alignment, and include Pattern only if the existing artifact's pattern was read reliably. Do not imply that this run's selected pattern/style/policy was written.
 
 ## Artifact Ownership
 
-- **Primary artifact:** the resolved architecture path (default `.ai-factory/ARCHITECTURE.md`).
-- **Allowed companion updates:** the architecture pointer in the resolved DESCRIPTION file and the architecture row in root `AGENTS.md`.
+- **Primary ownership:** the resolved architecture artifact path (default: `.ai-factory/ARCHITECTURE.md`).
+- **Respect config overrides:** write to the resolved architecture path from `config.yaml` when provided.
+- **Allowed companion updates:** architecture pointer in the resolved DESCRIPTION path from `config.yaml`, architecture row in `AGENTS.md` context table.
 - **Read-only context:** roadmap, rules, research, plans, source code, and other project artifacts unless the user explicitly requests additional changes.
 - Never modify built-in skill files or architecture references as part of a normal `/aif-architecture` run.
+---

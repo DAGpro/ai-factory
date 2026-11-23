@@ -5,7 +5,7 @@ The pattern folder trees in this knowledge base are language-agnostic architectu
 When a programming language or framework's idiomatic conventions conflict with generic names, the language conventions win. This document provides concrete, production-ready directory trees for the six major web ecosystems, fully aligned with the unified rules for **`_Shared/`**, **Channels (`Admin/` vs `Public/`)**, and **Action Styles**.
 
 > 💡 **No Hard Naming or Casing Lock-in:**  
-> These blueprints show idiomatic adaptations for specific stacks. There is zero hard lock-in to PascalCase or fixed directory names: use `snake_case` in Python, lowercase in Go, `kebab-case` in TypeScript, and feel free to use accepted synonyms (e.g. `UseCases/` for `Application/`, `Interfaces/` for `Ports/`, `_shared/` for `_Shared/`).
+> These blueprints show idiomatic adaptations for specific stacks. There is zero hard lock-in to PascalCase or fixed directory names: use `snake_case` in Python, lowercase in Go, `kebab-case` in TypeScript, and feel free to use accepted synonyms (e.g. `UseCases/` for `Application/`, `Interfaces/` for `Ports/`).
 
 ---
 
@@ -339,21 +339,19 @@ MyApplication.sln
 > **Channels:** Controllers separated into `Admin/` and `Public/`  
 > **Action Style:** Style 1 (Feature Subfolders / Single-Action Invokable Classes) with `_Shared/`
 
-Standard Laravel projects start with Layered Architecture (`app/Http/Controllers/`, `app/Models/`). For large-scale web platforms, idiomatic Laravel adopts a **Modular Monolith** using Single-Action Classes (Spatie / Lorisleiva Actions) and entity-level `_Shared/` folders for forms:
+Standard Laravel projects start with Layered Architecture (`app/Http/Controllers/`, `app/Models/`). For large-scale web platforms, idiomatic Laravel adopts a **Modular Monolith** using Single-Action Classes (Spatie / Lorisleiva Actions) and entity-level `_Shared/` folders for DTOs:
 
 ```text
 app/
 ├── Modules/                                    # ── FEATURE MODULES (Structured Modules) ──
 │   ├── Ordering/
 │   │   ├── _Shared/                            # Shared within Ordering module (prevents lateral imports)
-│   │   │   ├── Forms/                          # Reusable Blade / Livewire form components
-│   │   │   │   └── OrderForm.php
 │   │   │   └── Dtos/                           # Shared Data Transfer Objects (Spatie Data)
 │   │   │       └── OrderBaseData.php
 │   │   │
-│   │   ├── Actions/                            # Single-Action Use Cases (Style 1)
+│   │   ├── Actions/                            # Single-Action Use Cases (Style 1, pure execution)
 │   │   │   ├── CreateOrderAction.php           # Encapsulates business execution (__invoke)
-│   │   │   ├── UpdateOrderAction.php           # Uses _Shared/Forms/OrderForm.php
+│   │   │   ├── UpdateOrderAction.php           # Encapsulates business execution (__invoke)
 │   │   │   └── CancelOrderAction.php
 │   │   │
 │   │   ├── Models/                             # Eloquent models with domain methods
