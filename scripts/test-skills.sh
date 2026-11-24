@@ -827,17 +827,17 @@ EXISTING_PROJECT_SUGGESTIONS_SECTION="$(awk '
     /^Present these as `AskUserQuestion` with multi-select options:$/ { if (capture) exit }
 ' "$AIF_SKILL")"
 AIF_ARCH_DESCRIPTION_SECTION="$(awk '
-    /^#### 9\.1 DESCRIPTION\.md$/ { capture=1 }
+    /^#### 8\.1 DESCRIPTION\.md$/ { capture=1 }
     capture { print }
-    /^#### 9\.2 AGENTS\.md$/ { if (capture) exit }
+    /^#### 8\.2 AGENTS\.md$/ { if (capture) exit }
 ' "$AIF_ARCH_SKILL")"
 AIF_ARCH_AGENTS_SECTION="$(awk '
-    /^#### 9\.2 AGENTS\.md$/ { capture=1 }
+    /^#### 8\.2 AGENTS\.md$/ { capture=1 }
     capture { print }
-    /^### Step 10: Validate and report$/ { if (capture) exit }
+    /^### Step 9: Validate and report$/ { if (capture) exit }
 ' "$AIF_ARCH_SKILL")"
 AIF_ARCH_CONFIRM_SECTION="$(awk '
-    /^### Step 10: Validate and report$/ { capture=1 }
+    /^### Step 9: Validate and report$/ { capture=1 }
     capture { print }
     /^## Artifact Ownership$/ { if (capture) exit }
 ' "$AIF_ARCH_SKILL")"
@@ -1406,7 +1406,6 @@ fi
 
 if grep -Fq -e '--style=subfolders|unified' "$AIF_ARCH_SKILL" \
    && grep -Fq -e '--policy=adapt|strict' "$AIF_ARCH_SKILL" \
-   && grep -Fq -e '--existing=overwrite|merge|skip' "$AIF_ARCH_SKILL" \
    && grep -Fq 'microservices[-single|-monorepo]' "$AIF_ARCH_SKILL"; then
     pass "/aif-architecture declares modern CLI flags and microservices variants"
 else
@@ -1419,13 +1418,6 @@ if grep -Fq 'Read `.ai-factory/skill-context/aif-architecture/SKILL.md`' "$AIF_A
     pass "/aif-architecture enforces skill-context precedence and augmentation contract"
 else
     fail "/aif-architecture skill-context enforcement contract missing"
-fi
-
-if grep -Fq '## Regeneration' "$AIF_ARCH_SKILL" \
-   && grep -Fq -e '--existing=merge' "$AIF_ARCH_SKILL"; then
-    pass "/aif-architecture template contains regeneration and merge contract"
-else
-    fail "/aif-architecture template missing regeneration or merge contract"
 fi
 
 ARCH_REFS_OK=1

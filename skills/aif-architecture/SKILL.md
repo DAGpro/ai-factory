@@ -1,8 +1,8 @@
 ---
 name: aif-architecture
 description: Generate architecture guidelines for the project. Analyzes tech stack from DESCRIPTION.md, recommends an architecture pattern, and creates .ai-factory/ARCHITECTURE.md. Use when setting up project architecture, asking "which architecture", or after /aif setup.
-argument-hint: "[layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo] | clean | ddd | monolith | vertical] [--style=subfolders|unified] [--policy=adapt|strict] [--existing=overwrite|merge|skip]"
-allowed-tools: Read Write Edit Glob Grep Bash(ls *) Bash(mkdir *) AskUserQuestion Questions
+argument-hint: "[layers | structured[-layers|-vertical] | explicit[-layers|-vertical|-flat] | microservices[-single|-monorepo] | clean | ddd | monolith | vertical] [--style=subfolders|unified] [--policy=adapt|strict]"
+allowed-tools: Read Write Edit Glob Grep Bash(mkdir *) AskUserQuestion Questions
 disable-model-invocation: false
 ---
 
@@ -58,7 +58,7 @@ Generate the resolved architecture artifact (default `.ai-factory/ARCHITECTURE.m
 
 Execute the steps below in order. Do not write the architecture artifact or update companion files until all required decisions are resolved.
 
-`BLOCKED` is a terminal result for all dependent work: stop before Step 8, do not write the architecture artifact or companion files, and report (a) the exact missing decision or evidence, (b) why it is required, and (c) the valid choices or evidence needed to continue. Do not replace a blocked decision with a default or assumption. Read-only work that does not depend on the missing item may continue only when it can materially help explain the block.
+`BLOCKED` is a terminal result for all dependent work: stop before Step 7, do not write the architecture artifact or companion files, and report (a) the exact missing decision or evidence, (b) why it is required, and (c) the valid choices or evidence needed to continue. Do not replace a blocked decision with a default or assumption. Read-only work that does not depend on the missing item may continue only when it can materially help explain the block.
 
 ### Step 0: Load configuration and project context
 
@@ -111,42 +111,22 @@ If a required reference is missing or unreadable, stop before generating the art
 
 ### Step 2: Survey and classify the codebase
 
-Perform a bounded, read-only survey. Use `Glob` for file-path discovery and targeted `ls` for directory confirmation. Use `Read` on representative files when directory names alone cannot establish their role.
-
-Tool constraints:
-
-- During this survey, use only `Glob`, `Read`, and targeted `ls`; do not create, edit, or delete files.
-- Shell access is limited to the `ls` and `mkdir` commands declared in `allowed-tools`. Use `ls` only for targeted directory confirmation. Reserve `mkdir` exclusively for creating the resolved architecture artifact's parent directory in Step 8. Do not use `find`, `tree`, `dir`, shell scripts, package commands, or any other shell command.
-- Start with shallow patterns such as `*` and `*/*`. Explicitly include hidden entries (for example `.ai-factory`, `.gitignore`, and dot-prefixed stack configuration); do not assume `*` includes them. Widen the search one level at a time into roots revealed by the results, the DESCRIPTION file, and stack manifests (for example `src/*/*` or `apps/*/*/*`). Do not inspect deeper than three directory levels below the project root during the initial survey.
-- Read no more than 12 representative source/configuration files in total during the initial survey; `.gitignore` and stack manifests count toward this limit. Choose files that establish the roles of the relevant roots and dependency directions. If the 12-file sample leaves a material classification or architecture signal unresolved, read at most three additional targeted files; if uncertainty remains after that, return `BLOCKED` and identify the missing evidence.
-- Use targeted `ls <directory>` to distinguish directories from path prefixes and to inspect a specific subtree. Do not use blanket recursive listings.
-- Read `.gitignore` when present. Exclude dependency, generated, build, cache, and vendor directories according to repository ignore rules. Do not treat excluded directories as evidence that project code is absent.
-- A shallow or incomplete search is never evidence that a file, feature, or directory does not exist. If the bounded survey cannot establish the required facts, read a small representative sample. If material uncertainty remains, return `BLOCKED` and state what evidence is missing; do not guess.
+Perform a bounded, read-only survey using `Glob` for file-path discovery and `Read` on representative files. Exclude dependency, cache, vendor, and build directories according to repository conventions and `.gitignore` (for example `node_modules`, `vendor`, `target`, `dist`). Do not create, edit, or delete files during this survey.
 
 Classify the project as exactly one of:
 
-**Clean / starter scaffolding**
+- **Clean / starter scaffolding:** no custom domain behavior. Framework entry points, generated layouts, starter auth/scaffolding, configuration, and utilities do not make a project Existing. Classify as Clean if observed files represent standard framework scaffolding.
+- **Existing codebase:** at least one file contains project-specific domain behavior (custom domain models, business services, business rules, or domain routes). Preserve this code.
 
-Use this classification only when the surveyed project contains no custom domain behavior. Framework entry points, generated layouts, configuration, scripts, static assets, and scaffold-owned utility files do not by themselves make a project Existing. For a framework scaffold, classify as Clean only if the observed files could be reproduced by the framework's scaffold process plus restoration of configuration values and utility files.
+Build a concise structural inventory of the codebase:
+- Technical-layer roots and feature/module/context roots (`src/`, `app/`, etc.);
+- Delivery folders, routes, entry points, and controllers;
+- Domain, persistence, and service locations;
+- Per-feature subfolders versus unified multi-action files.
 
-**Existing codebase**
+Retain representative file paths supporting each finding. Do not treat absent canonical folders as structural conflicts.
 
-Use this classification when at least one file contains project-specific domain behavior that the framework scaffold would not regenerate, such as custom domain models, business services, business rules, or domain-specific routes. Preserve this code. Never classify a project as Clean merely because its structure is unfamiliar or its files are few.
-
-When classification is uncertain, read a bounded sample of the relevant files. File and directory names are clues, not proof. If the sample still cannot establish whether custom domain behavior exists, return `BLOCKED` with the unresolved paths and do not classify the project by guesswork.
-
-Build a concise structural inventory covering evidence relevant to architecture evaluation and the patterns under consideration. After the pattern is resolved, use only the relevant parts of this inventory for the selected architecture:
-
-- technical-layer roots and feature/module/context roots;
-- delivery folders, routes, and entry points;
-- per-entity slices and cross-entity process slices;
-- per-feature subfolders versus unified per-entity files;
-- service/repository/domain/persistence locations;
-- service roots and repository boundaries when considering Microservices.
-
-For each conclusion, retain the paths or file examples that support it. Mark a signal `ambiguous` when independent evidence does not agree. Do not turn missing folders into discrepancies: an absent canonical folder is not a structural conflict.
-
-### Decision precedence used by Steps 3-7
+### Decision precedence used by Steps 3-6
 
 Apply these sources in descending order of authority:
 
@@ -166,11 +146,11 @@ Resolve the base pattern before resolving its variant, alignment policy, or acti
 
 Parse the complete invocation once, before resolving any decision. Parsing is case-sensitive and uses the exact token spellings shown below.
 
-1. Parse `--style=VALUE`, `--policy=VALUE`, and `--existing=VALUE` wherever they occur in the invocation, independently of positional tokens. The value is the text after the first `=`. A recognized option and its value are never positional tokens.
+1. Parse `--style=VALUE` and `--policy=VALUE` wherever they occur in the invocation, independently of positional tokens. The value is the text after the first `=`. A recognized option and its value are never positional tokens.
 2. For each option, retain the last valid occurrence. An invalid occurrence is reported and ignored; it does not erase an earlier valid occurrence. If an option is repeated and a later valid occurrence overrides an earlier valid one, report the override.
-3. A token beginning with `--` that is not one of the three supported options, or that uses a malformed form (including a missing `=` or empty value), is an unrecognized option. Report it and do not reinterpret it as a positional token.
+3. A token beginning with `--` that is not one of the two supported options, or that uses a malformed form (including a missing `=` or empty value), is an unrecognized option. Report it and do not reinterpret it as a positional token.
 4. All remaining tokens are positional tokens. Parse them using the table and rules below. Do not infer intent from free-form text or from a token that is not listed.
-5. A clear natural-language choice made by the user in the current architecture run also counts as an explicit choice when it maps unambiguously to one canonical pattern, variant, style, policy, or existing-artifact action. Do not reuse choices from earlier, separate runs. If the wording could map to more than one choice, ask one focused clarification question; do not guess. A question, preference hint, or description of project needs is not itself a choice.
+5. A clear natural-language choice made by the user in the current architecture run also counts as an explicit choice when it maps unambiguously to one canonical pattern, variant, style, or policy. Do not reuse choices from earlier, separate runs. If the wording could map to more than one choice, ask one focused clarification question; do not guess. A question, preference hint, or description of project needs is not itself a choice.
 
 Recognized pattern tokens:
 
@@ -218,7 +198,7 @@ Use the INDEX decision matrix and two-phase decision algorithm as the primary gu
 - **Structured Modules** for a growing multi-feature application that benefits from cohesive module boundaries without the full cost of explicit ports and adapters.
 - **Layered Architecture** for a small, straightforward CRUD application where minimizing initial complexity is more valuable than strong module boundaries.
 
-Interactive mode, when no explicit pattern choice was supplied: present one recommendation with evidence-based reasons and the meaningful alternatives. Ask the user to choose exactly one of the four base patterns. Do not continue until a valid choice is received.
+Interactive mode, when no explicit pattern choice was supplied: present one recommendation with evidence-based reasons and the meaningful alternatives. Ask the user to choose exactly one of the four base patterns (Layered Architecture, Structured Modules, Explicit Architecture, Microservices). Do not include structural variants in this question and do not collapse the pattern and variant choices into a single prompt. Wait for the user's pattern selection before resolving any structural variant in Step 4. Do not continue until a valid choice is received.
 
 Non-interactive mode, when no explicit pattern choice was supplied: return `BLOCKED` for both Clean and Existing codebases. Include the evidence-based recommendation, meaningful alternatives, and accepted pattern tokens. The base pattern is a required architecture decision, not an optional preference; do not select it on the user's behalf.
 
@@ -227,6 +207,8 @@ A valid user-provided pattern is an explicit choice; do not replace it with the 
 ### Step 4: Resolve the structural variant
 
 Layered Architecture has no structural variant. Skip this step for Layered.
+
+In interactive mode, resolve the variant only as a separate follow-up question after the base pattern has been selected in Step 3. Never combine the base pattern choice and the structural variant choice into a single question.
 
 The available variants are:
 
@@ -304,13 +286,13 @@ Set the alignment policy to `strict (already conforming)`. This means new code f
 Without a valid explicit policy choice:
 - Interactive mode: ask the user to choose:
   1. **Adapt** — document the current structure accurately, identify deviations from the target, and recommend that new code follow the target boundaries where practical.
-  2. **Strict** — document the canonical target architecture and isolate non-conforming existing code as legacy. Do not refactor unrelated legacy code automatically.
+  2. **Strict** — document the canonical target architecture and logically isolate non-conforming existing code as legacy without physical file relocation. Do not refactor unrelated legacy code automatically.
 - Non-interactive mode: return `BLOCKED` with the detected discrepancies and the two policy options.
 
 Policy semantics:
 
 - **Adapt:** the generated folder tree and dependency rules describe the selected target architecture. Add a clearly labelled `Current-State Deviations` subsection that records the actual existing locations and explains which target rules they do not yet satisfy. Do not present those deviations as allowed target dependencies.
-- **Strict:** generate the canonical target tree and dependency rules. Add `Legacy vs New Code Policy` with the quarantine location prescribed by the selected pattern reference. New code follows the target architecture; unrelated legacy code is not automatically refactored. Migrate legacy code only when a planned task explicitly touches that area or the user requests a refactor.
+- **Strict:** generate the canonical target tree and dependency rules purely according to the chosen pattern without compromising for existing files. Add `Legacy vs New Code Policy` where non-conforming existing code is isolated logically without physical file relocation. Existing non-conforming locations are treated as frozen legacy boundaries: no physical files are moved or renamed automatically by this skill. Include concrete migration instructions: a mapping of existing non-conforming paths to their target architectural locations, along with required namespace, configuration, and binding updates. The user decides whether to physically relocate legacy code into a dedicated quarantine folder or refactor it into the target architecture in future tasks. New code follows the target architecture; unrelated legacy code is not automatically refactored or moved. Migrate legacy code only when a planned task explicitly touches that area or the user requests a refactor.
 
 The alignment policy does not apply to Clean projects. Any natural-language Adapt/Strict choice or `--policy` value on a Clean project is a no-op; report it as ignored. For a conforming Existing codebase, use `Strict (already conforming)` regardless of an Adapt/Strict choice or `--policy` value, report that choice/value as a no-op, and do not create an Adapt or legacy-quarantine section.
 
@@ -327,59 +309,24 @@ Resolve style in this order, using an unambiguous explicit user choice of Style 
 
 1. A valid `--style=subfolders` selects Style 1.
 2. A valid `--style=unified` selects Style 2.
-3. Only when no valid explicit style was supplied: for an Existing codebase with a clear detected style, use that style. Interactive mode asks the user to confirm it or choose the alternative; non-interactive mode uses it and reports the assumption.
-4. Otherwise use the pattern/variant default:
-   - Vertical-slice variants → Style 1.
-   - Technical-layer variants → Style 2.
-   - Microservices → Style 2.
+3. When no valid explicit style was supplied in arguments:
+   - Interactive mode: do NOT apply a default automatically. Always prompt the user to choose between Style 1 (Feature Subfolders) and Style 2 (Unified Multi-Action). Present the recommendation based on the detected style or pattern/variant default, but require the user's explicit selection.
+   - Non-interactive mode: use the detected style if clear (reporting the assumption), otherwise use the pattern/variant default:
+     - Vertical-slice variants → Style 1.
+     - Technical-layer variants → Style 2.
+     - Microservices → Style 2.
 
 If an explicit style conflicts with the detected style, the explicit choice wins and the mismatch is reported. Repeated and invalid option values follow the parser rules in Step 3.1.
 
 Do not infer Style 1 from the mere presence of a folder named after an entity. The survey must show use-case-specific subfolders in the relevant layers. Do not infer Style 2 from a single file; confirm the pattern across representative entities.
 
-### Step 7: Resolve the existing-artifact action
-
-Use the existence check recorded in Step 0.
-
-If the resolved architecture path does not exist, the action is `create`; no existing-artifact decision is needed. Any natural-language Overwrite/Merge/Skip choice or `--existing` value supplied in this situation is a no-op and must be reported as ignored.
-
-If the resolved architecture path already exists, use an unambiguous explicit user choice of Overwrite, Merge, or Skip, whether supplied in natural language or as the last valid `--existing` value parsed in Step 3.1. A malformed or unsupported option value is reported and ignored; if no explicit choice remains, the action is unspecified. Accept only:
-
-- `--existing=overwrite`
-- `--existing=merge`
-- `--existing=skip`
-
-Repeated and invalid option values follow the parser rules in Step 3.1.
-
-Without a valid explicit existing-artifact action:
-- Interactive mode: ask the user to choose:
-  1. **Overwrite** — replace the entire architecture artifact with this run's generated artifact.
-  2. **Merge** — regenerate recognized template sections and preserve sections not owned by the template.
-  3. **Skip** — leave the architecture artifact unchanged.
-- Non-interactive mode: return `BLOCKED` with these three options.
-
-For both `overwrite` and `merge`, read the existing architecture artifact in full after the action is selected and retain that content as the concurrency-check snapshot. If it cannot be read, return `BLOCKED`; do not modify the file. For `overwrite`, the snapshot is used only to detect concurrent changes; the approved action still replaces the complete file. For `merge`, use the snapshot for deterministic section matching:
-- Match only actual top-level Markdown `##` headings (not text inside fenced code blocks) whose parsed heading text exactly matches the corresponding generated heading in the resolved `language.artifacts`, after trimming leading/trailing whitespace and removing optional Markdown closing `#` markers. Matching is case-sensitive. Do not use fuzzy similarity, translated-heading guesses, or semantic matching.
-- Replace each matching section in full, including all of its nested subsections, through (but not including) the next top-level `##` heading.
-- Add each generated template section that has no exact match, in the order shown in the template, immediately before the localized `Regeneration` section if one is present; otherwise append the missing sections at the end of the document.
-- Preserve every unmatched top-level section and its content in its original relative order. Do not match or replace `###` subsections independently.
-- Always regenerate the document title with the resolved canonical pattern name.
-- If the existing document contains the exact localized `## Regeneration` heading generated for this run, move that section to the end and replace its content with the standard regeneration instruction localized to `language.artifacts`.
-- If headings use another language or older wording, treat them as unmatched and preserve them. Append the generated sections; report any preserved section that appears duplicative or conflicts with the generated policy. Do not silently delete or merge content based on guessed equivalence.
-- If the same exact generated heading occurs more than once, replace only the first occurrence and preserve later occurrences; report the duplicates for manual review.
-- Never delete preserved content silently. In the final report, list preserved sections that appear to duplicate generated sections or conflict with the resolved policy.
-
-For `overwrite`, replace the whole file. In the final report, identify that user-authored or non-template sections may have been removed. Do not claim that content was preserved.
-
-For `skip`, treat the decision as a no-op for this skill run: do not write to the architecture artifact, do not update DESCRIPTION.md or AGENTS.md, and do not create directories. Skip Steps 8 and 9 entirely. In the final report, identify the existing architecture path and report `Existing artifact: skipped`. Do not claim that the pattern, variant, style, or policy selected during this run was applied to the existing artifact. If the existing artifact's pattern can be read reliably, it may be mentioned as informational context; otherwise omit it. From the moment `skip` is selected, no project file or directory may be created, modified, renamed, or deleted; verify that the architecture artifact and any companion files remain byte-for-byte unchanged.
-
-### Step 8: Generate or update ARCHITECTURE.md
+### Step 7: Generate ARCHITECTURE.md
 
 Do not start this step if any required decision remains unresolved.
 
-First generate and validate the complete artifact in `language.artifacts` without modifying the filesystem. Only after the complete content passes validation, create the parent directory if needed using the permitted `mkdir` command, then perform the single final write.
+Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.md`; `paths.architecture` overrides) adapted to the project's tech stack and language.
 
-Write behavior is determined only by Step 7: `create` writes a new file; `overwrite` replaces the full existing file; `merge` applies the exact-heading rules in Step 7. Do not write a partial artifact. If generation or validation fails before the final write, leave the existing architecture artifact unchanged and do not create its parent directory. For an existing file, prepare and validate the complete replacement content before writing it once. Immediately before the final write, recheck the target: for `create`, it must still be absent; for `overwrite` or `merge`, it must still be the same regular file content read during Step 7. If the state/content changed during this run, stop and return `BLOCKED` for a fresh user decision; do not overwrite concurrent changes.
+First generate and validate the complete artifact in `language.artifacts` without modifying the filesystem. Only after the complete content passes validation, create the parent directory if needed using the permitted `mkdir` command, then write the architecture artifact. If a file already exists at the target path, overwrite it directly. Do not write a partial artifact. If generation or validation fails before the final write, leave the existing architecture artifact unchanged and do not create its parent directory.
 
 Use this structure, adapting headings and prose to the artifact language while preserving the semantic meaning of each section:
 
@@ -396,7 +343,7 @@ Use this structure, adapting headings and prose to the artifact language while p
 - **Tech stack:** [Language, framework, database/ORM where relevant.]
 - **Key factor:** [Primary evidence behind the choice.]
 - **Action organization:** [Style 1 or Style 2; omit for Layered.]
-- **Alignment policy:** [Not applicable (Clean) / Strict (already conforming) / Adapt / Strict (legacy quarantine).]
+- **Alignment policy:** [Not applicable (Clean) / Strict (already conforming) / Adapt / Strict (logical legacy quarantine).]
 
 ## Folder Structure
 [Stack-idiomatic target folder tree.]
@@ -421,9 +368,6 @@ Use this structure, adapting headings and prose to the artifact language while p
 
 ## Anti-Patterns
 [Concrete anti-patterns for the selected architecture.]
-
-## Regeneration
-To regenerate this document's template sections while preserving custom sections and content, rerun `/aif-architecture` with `--existing=merge`.
 ```
 
 Generation rules:
@@ -438,7 +382,7 @@ Generation rules:
    - **Microservices:** each service follows the selected service template; domain entities and outbound interfaces remain inside that service.
 5. Apply the selected style consistently across all relevant layers and delivery channels. Add `[Channel]` folders only where the reference prescribes them and only when the project serves multiple audiences.
 6. Under Adapt, show the target structure first. List actual deviations separately; never describe a forbidden existing dependency as an allowed target rule.
-7. Under Strict, use the quarantine location prescribed by the selected pattern reference. Do not invent a new quarantine convention.
+7. Under Strict, define logical quarantine boundaries for non-conforming existing code without physically moving or renaming files. The user decides whether to physically relocate legacy code or refactor it into the target architecture.
 8. Include only architectural rules supported by the selected references and project evidence. Mark assumptions explicitly.
 9. Keep the artifact actionable. Avoid generic principles that do not change implementation decisions.
 10. Apply all project-specific rules from skill-context (`.ai-factory/skill-context/aif-architecture/SKILL.md` and `global-skill-context.md`). The template is a base structure: if a skill-context rule requires specific sections, principles, constraints, or custom layouts, augment the generated ARCHITECTURE.md accordingly.
@@ -458,18 +402,20 @@ Generation rules:
 
 **Existing with discrepancies — Strict**
 
+- **Target Architecture:** canonical architecture designed purely according to the chosen pattern without compromising for existing legacy files.
 - **New Features:** follow the canonical target architecture.
-- **Legacy Quarantine:** isolate non-conforming existing code using the exact location specified by the selected pattern reference.
+- **Logical Legacy Quarantine:** non-conforming existing locations are logically marked as frozen legacy boundaries without physical file relocation. Do not move or rename existing files automatically; the user decides whether to physically move legacy code into a dedicated quarantine folder or refactor it to the new architecture.
 - **Legacy Isolation:** do not allow legacy implementation details to leak into new domain/application code.
-- **Opportunistic Migration:** migrate legacy code only when a planned task touches it or the user explicitly requests migration. Do not refactor unrelated code automatically.
+- **Migration Instructions:** provide a concrete file migration mapping (existing path -> target path) and identify required namespace, framework configuration (e.g. auth/provider configs), and binding updates needed to complete the migration.
+- **Opportunistic Migration:** migrate legacy code either through a dedicated refactoring task or opportunistically when a planned task touches that area. Do not refactor unrelated code automatically.
 
-### Step 9: Update companion pointers
+### Step 8: Update companion pointers
 
-Run this step only after Step 8 has completed successfully. If Step 8 fails, do not update either companion file. If Step 7 resolves to `skip`, skip this step entirely and leave all project files unchanged.
+Run this step only after Step 7 has completed successfully. If a companion file does not exist, do not create it.
 
-#### 9.1 DESCRIPTION.md
+#### 8.1 DESCRIPTION.md
 
-If the resolved DESCRIPTION file exists, add or update one architecture-pointer section in resolved `language.artifacts`. Use the resolved architecture path from config, not the default path literal.
+If the resolved DESCRIPTION file exists, add or update the architecture-pointer section in resolved `language.artifacts`. Use the resolved architecture path from config, not the default path literal.
 
 ```markdown
 ## [Localized heading: Architecture]
@@ -477,39 +423,19 @@ If the resolved DESCRIPTION file exists, add or update one architecture-pointer 
 [Localized label: Pattern]: [canonical pattern-variant name]
 ```
 
-The pointer contains:
-- a localized heading (Architecture in resolved `language.artifacts`);
-- one sentence referencing the resolved architecture path;
-- a `Pattern:` line naming the canonical pattern and variant.
+If an architecture section already exists, update it in-place; otherwise, append it to the document.
 
-Find an existing pointer by checking these criteria in priority order:
-1. an actual top-level Markdown section (not text inside a fenced code block) that contains the exact resolved architecture path;
-2. an actual top-level Markdown section that contains the default `.ai-factory/ARCHITECTURE.md` path;
-3. an actual top-level Markdown section whose heading matches the localized architecture heading generated for this run and that contains a `Pattern:` line. Do not infer that a differently worded heading is equivalent.
+#### 8.2 AGENTS.md
 
-Within the highest-priority criterion that has a match, update only the first matching section in document order. Preserve all other candidate sections and report them as duplicate or stale pointers. If no section matches, append one new pointer section. Do not update unrelated sections merely because they mention architecture. Write the pointer only after Step 8 succeeds; `skip` never reaches this step.
-
-#### 9.2 AGENTS.md
-
-If root `AGENTS.md` exists, add the resolved architecture artifact path to the "AI Context Files" table in resolved `language.artifacts`:
+If root `AGENTS.md` exists, register the architecture guidelines in the "AI Context Files" table in resolved `language.artifacts`:
 
 ```markdown
 | [resolved-architecture-path] | [Localized architecture artifact description in resolved artifacts language] |
 ```
 
-If a row already points to the resolved path, leave it; otherwise, update or add the row following these rules:
+If a row already points to the resolved path, leave it unchanged. If an existing row references the default path, update it to the resolved path. If no architecture row exists, add it to the table.
 
-- Consider only actual Markdown headings and tables, not text inside fenced code blocks. If one or more exact `## AI Context Files` headings exist, use the first such heading in document order. Within that section, reuse the first Markdown table before the next top-level heading whose header cells are exactly `File` and `Purpose`. If no such table exists, add a new `File | Purpose` table at the end of that section, immediately before the next top-level heading; preserve the section's existing prose and tables. Report additional exact `## AI Context Files` headings and additional eligible tables as duplicates; do not modify them.
-- If the heading does not exist, reuse the first Markdown table in document order whose header cells are exactly `File` and `Purpose` and that contains at least one non-empty File cell with a project-relative path. Do not infer suitability from Purpose text alone.
-- If neither an applicable heading nor table exists, append the literal `## AI Context Files` heading and a `File | Purpose` table. Localize the Purpose cell text to `language.artifacts`.
-- Identify an existing architecture row by its exact resolved path. If found, leave the first exact-path row unchanged and report any additional exact-path duplicates.
-- If no exact-path row exists but a row's File cell exactly equals the default `.ai-factory/ARCHITECTURE.md` path, update the first such row to the resolved path and update its Purpose cell. Preserve and report any additional default-path duplicates. If neither exact path nor default path is present, append a new row. Do not identify rows by approximate wording in the Purpose cell.
-- Do not treat a row that merely mentions architecture in an unrelated context as an architecture-guidelines row. Do not rewrite unrelated rows or tables.
-- Use the table's existing language for the row description. If creating a new table, use `language.artifacts`.
-
-If a companion file is absent, skip that update and report that it was not present. Do not create DESCRIPTION.md or AGENTS.md solely for this pointer. Update the two companion files independently after the architecture artifact succeeds. If one companion update fails, do not undo a successful update to the other; report the exact failed path and continue only with the remaining safe update. If the architecture artifact succeeded but one or more companion updates failed, report partial completion rather than full success.
-
-### Step 10: Validate and report
+### Step 9: Validate and report
 
 Before reporting success, validate the result against this checklist:
 
@@ -522,10 +448,10 @@ Before reporting success, validate the result against this checklist:
 - [ ] All project-specific rules from skill-context (`.ai-factory/skill-context/aif-architecture/SKILL.md` and global) are satisfied and incorporated.
 - [ ] The alignment-policy content matches the project state: Clean has Code Organization Policy; Existing with discrepancies has exactly one of Adapt or Strict policy sections; Existing and conforming has no additional alignment-policy section.
 - [ ] If the selected policy is Adapt, deviations are described separately from target rules.
-- [ ] If the selected policy is Strict with existing discrepancies, legacy quarantine uses the selected reference's prescribed location.
+- [ ] If the selected policy is Strict with existing discrepancies, the target architecture is designed purely without compromising for existing files, legacy quarantine is defined logically without physical file relocation, and file migration instructions are provided.
+- [ ] If existing discrepancies were found (legacy quarantine under Strict or deviations under Adapt), report guidance focuses strictly on architectural discrepancies and legacy code without recommending unrelated commands.
 - [ ] The DESCRIPTION pointer, if updated, references the resolved path and the artifact's actual pattern.
 - [ ] The AGENTS.md row, if updated, references the resolved path.
-- [ ] Under `skip`, the architecture artifact and all companion files are byte-for-byte unchanged; no directory was created.
 - [ ] Companion pointers were changed only after the architecture artifact write succeeded.
 - [ ] The resolved architecture path does not collide with DESCRIPTION.md or root AGENTS.md.
 
@@ -537,13 +463,12 @@ Present the final report in resolved `language.ui`:
 [Localized success heading in `language.ui`]
 
 [Localized pattern label in `language.ui`]: [canonical pattern-variant name]
-[Localized style label in `language.ui`]: [resolved action organization style; omit for Layered and skip]
-[Localized policy label in `language.ui`]: [resolved alignment policy: adapt or strict; omit under skip]
-[Localized existing-file label in `language.ui`]: [created / overwritten / merged / skipped; omit when no existing artifact]
+[Localized style label in `language.ui`]: [resolved action organization style; omit for Layered]
+[Localized policy label in `language.ui`]: [resolved alignment policy: adapt or strict]
 [Localized file label in `language.ui`]: [resolved architecture path]
 
 [Localized assumptions heading in `language.ui`]:
-- [Detected defaults, unrecognized arguments/flags, mismatches, preserved conflicting sections, or no-op flags.]
+- [Detected defaults, unrecognized arguments/flags, mismatches, or no-op flags.]
 - [Omit this section when there is nothing to report.]
 
 [Localized updated-files heading in `language.ui`]:
@@ -552,10 +477,15 @@ Present the final report in resolved `language.ui`:
 [Localized key-rules heading in `language.ui`]:
 - [Three concise project-specific architectural rules.]
 
+[Localized architectural-discrepancies / legacy-guidance heading in `language.ui`]:
+- [If Strict with legacy discrepancies: remind that non-conforming legacy code is quarantined logically without physical relocation; note that ARCHITECTURE.md includes target migration instructions and mapping for future refactoring tasks; the user decides whether to physically relocate it or refactor it opportunistically.]
+- [If Adapt with deviations: remind that identified architectural deviations are documented under Current-State Deviations and can be addressed opportunistically.]
+- [Omit this section entirely if the codebase is clean or conforming with zero discrepancies.]
+
 [Localized closing sentence in `language.ui` about workflow skills following these architecture guidelines.]
 ```
 
-Do not report `created`, `overwritten`, or `merged` unless the corresponding write completed. Under `skip`, report `skipped`, omit Style and Alignment, and include Pattern only if the existing artifact's pattern was read reliably. Do not imply that this run's selected pattern/style/policy was written.
+Do not report success unless the file write completed. Validate that all updated files exist and match their expected paths.
 
 ## Artifact Ownership
 
