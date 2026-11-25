@@ -472,4 +472,3 @@ await this.orderRepo.save(order); // Persistence handled by repository adapter
 - ❌ **Monorepo Dependency Tangling:** Merging repositories into a monorepo and allowing Service A to import internal classes or database entities directly from Service B. Monorepo services must communicate strictly via `Libs/Contracts/` or network calls.
 - ❌ **Half-Baked Data Mapper:** Creating a repository adapter, but continuing to keep `@Column()` decorators and database foreign keys on the domain entity itself. True Data Mapper requires complete domain purity.
 - ❌ **Copy-Paste Migration:** Copying entire monolithic helper libraries and models into new services without auditing dependencies, introducing hidden circular coupling across network boundaries.
-

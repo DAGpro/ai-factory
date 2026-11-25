@@ -1436,6 +1436,107 @@ else
     fail "modular architecture references missing or legacy architecture.md referenced"
 fi
 
+if ! grep -Fq 'non-interactive runs report the detection as an assumption' "$SKILLS_DOC" \
+   && ! grep -Fq 'uses the detected style as a reported assumption' "$SKILLS_DOC" \
+   && ! grep -Fq 'default to Feature Subfolders' "$SKILLS_DOC" \
+   && grep -Fq 'unresolved structural variant or action style returns `BLOCKED`' "$SKILLS_DOC" \
+   && grep -Fq 'When no valid explicit style was supplied (neither in arguments nor in natural language):' "$AIF_ARCH_SKILL" \
+   && grep -Fq 'Non-interactive mode: return `BLOCKED` with the two style options' "$AIF_ARCH_SKILL" \
+   && ! grep -Fq 'pattern/variant default' "$AIF_ARCH_SKILL" \
+   && ! grep -Fq 'Default style per variant' "$ROOT_DIR/skills/aif-architecture/references/INDEX.md" \
+   && grep -Fq '[resolved alignment policy: Not applicable (Clean) / Strict (already conforming) / Adapt / Strict]' "$AIF_ARCH_SKILL"; then
+    pass "/aif-architecture docs, Step 6 no-default style resolution, and Step 9 policy states stay aligned"
+else
+    fail "/aif-architecture docs, Step 6 no-default style resolution, or Step 9 policy alignment drifted"
+fi
+
+if ROOT_DIR="$ROOT_DIR" node --input-type=module - <<'EOF'
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import ts from 'typescript';
+
+const root = process.env.ROOT_DIR;
+const logFix = process.env.LOG_LEVEL === 'debug' || process.env.DEBUG_FIX === '1';
+const read = rel => fs.readFileSync(path.join(root, rel), 'utf8').replace(/\r/g, '');
+
+try {
+    if (logFix) console.error('[FIX] Checking TypeScript snippets and OrderItem/Money APIs');
+    for (const rel of [
+        'skills/aif-architecture/references/DOMAIN-MODELING.md',
+        'skills/aif-architecture/references/PERSISTENCE-AND-ORM.md',
+    ]) {
+        const lines = read(rel).split('\n');
+        let inTs = false;
+        let blockStart = 0;
+        let blockCount = 0;
+        let buf = [];
+        for (let i = 0; i < lines.length; i++) {
+            const trimmed = lines[i].trim();
+            if (!inTs && trimmed === '```typescript') {
+                inTs = true;
+                blockStart = i + 2;
+                buf = [];
+            } else if (inTs && trimmed === '```') {
+                inTs = false;
+                blockCount++;
+                const sf = ts.createSourceFile(`${rel}:${blockStart}`, buf.join('\n'), ts.ScriptTarget.Latest, true);
+                assert.equal(sf.parseDiagnostics.length, 0, `${rel}:${blockStart} parse error: ${sf.parseDiagnostics.map(d => ts.flattenDiagnosticMessageText(d.messageText, ' ')).join('; ')}`);
+            } else if (inTs) {
+                buf.push(lines[i]);
+            }
+        }
+        assert(!inTs, `Unclosed typescript code block in ${rel}`);
+        assert(blockCount > 0, `Expected typescript code blocks in ${rel}`);
+        if (logFix) console.error('[FIX] Verified TypeScript syntax', { rel, blockCount });
+    }
+
+    const dm = read('skills/aif-architecture/references/DOMAIN-MODELING.md');
+    const po = read('skills/aif-architecture/references/PERSISTENCE-AND-ORM.md');
+    assert(!dm.includes('new OrderItem(product.id, product.price, quantity)'));
+    assert(!dm.includes('this._items[existingIndex] = this._items[existingIndex].increaseQuantity(quantity)'));
+    assert(dm.includes('public times(multiplier: number): Money'));
+    assert(dm.includes('public get unitPrice(): Money'));
+    assert(po.includes('item.unitPrice.cents'));
+    assert(!po.includes('item.price.cents'));
+    const reconstituteSig = 'public static reconstitute(\n    id: OrderId,\n    customerId: CustomerId,\n    status: OrderStatus,\n    total: Money,\n    items: OrderItem[],\n    version: number\n  ): Order';
+    assert(dm.includes(reconstituteSig));
+    assert(po.includes(reconstituteSig));
+    assert(po.includes('Money.cents(record.total_amount_cents, record.currency),\n      items,\n      record.version'));
+    if (logFix) console.error('[FIX] Verified OrderItem/Money API consistency');
+} catch (error) {
+    console.error('[FIX] Architecture reference snippet check failed:', error.message);
+    process.exit(1);
+}
+EOF
+then
+    pass "/aif-architecture reference TypeScript snippets keep valid syntax and consistent OrderItem/Money APIs"
+else
+    fail "/aif-architecture reference TypeScript snippets have stray syntax or inconsistent OrderItem/Money APIs"
+fi
+
+EXPLICIT_VAR_B_SECTION="$(awk '
+    /^### Variant B: Folder Structure — Vertical Slices$/ { capture=1 }
+    /^### Variant C: Folder Structure — Flat Vertical Slices$/ { if (capture) exit }
+    capture { print }
+' "$ROOT_DIR/skills/aif-architecture/references/EXPLICIT-ARCHITECTURE.md")"
+EXPLICIT_VAR_C_SECTION="$(awk '
+    /^### Variant C: Folder Structure — Flat Vertical Slices$/ { capture=1 }
+    /^## 4\. Key Principles$/ { if (capture) exit }
+    capture { print }
+' "$ROOT_DIR/skills/aif-architecture/references/EXPLICIT-ARCHITECTURE.md")"
+
+if printf '%s\n' "$EXPLICIT_VAR_B_SECTION" | grep -Fq 'Style 2: Unified Multi-Action' \
+   && printf '%s\n' "$EXPLICIT_VAR_B_SECTION" | grep -Fq '[EntityName]Service.{ext}' \
+   && printf '%s\n' "$EXPLICIT_VAR_B_SECTION" | grep -Fq '[ProcessName]Controller.{ext}' \
+   && printf '%s\n' "$EXPLICIT_VAR_C_SECTION" | grep -Fq 'Style 2: Unified Multi-Action' \
+   && printf '%s\n' "$EXPLICIT_VAR_C_SECTION" | grep -Fq '[Channel][EntityName]Controller.{ext}' \
+   && printf '%s\n' "$EXPLICIT_VAR_C_SECTION" | grep -Fq '[ProcessName]Controller.{ext}'; then
+    pass "/aif-architecture Explicit Architecture Variants B and C include Style 2 trees"
+else
+    fail "/aif-architecture Explicit Architecture Variants B or C missing Style 2 trees"
+fi
+
 # /aif-commit active Commit Plan grouping contract
 if grep -Fq '`paths.plan`' "$AIF_COMMIT_SKILL" \
    && grep -Fq '`paths.plans`' "$AIF_COMMIT_SKILL" \

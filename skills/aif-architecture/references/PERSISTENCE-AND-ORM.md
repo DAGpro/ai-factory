@@ -4,8 +4,8 @@ A central challenge in Domain-Driven Design and Explicit Architecture is prevent
 
 This guide details the implementation of the **Data Mapper Pattern**, cross-aggregate **Transaction Management (Unit of Work)**, the **Transactional Outbox Pattern**, and real-world ORM mapping strategies for Prisma, Drizzle, TypeORM, and SQLAlchemy.
 
-> ⚠️ **Zero Naming & Casing Lock-in:**  
-> The file paths, interfaces, and directory names shown below (e.g. `OrderTableRecord.ts`, `OrderMapper.ts`, `PostgresOrderRepository`) are conceptual representations of the Data Mapper pattern.  
+> ⚠️ **Zero Naming & Casing Lock-in:**
+> The file paths, interfaces, and directory names shown below (e.g. `OrderTableRecord.ts`, `OrderMapper.ts`, `PostgresOrderRepository`) are conceptual representations of the Data Mapper pattern.
 > Your actual persistence layout depends entirely on your chosen database tool and ecosystem:
 > - In **Prisma**: schemas live in `prisma/schema.prisma`, returning generated TypeScript types.
 > - In **Drizzle ORM**: schemas live in `src/db/schema.ts` (or `drizzle/schema.ts`).
@@ -53,8 +53,8 @@ export class Order {
     private readonly _id: OrderId,
     private readonly _customerId: CustomerId, // Referenced strictly by Identity, NOT by Customer entity!
     private _status: OrderStatus,
-    private _items: OrderItem[],
     private _total: Money,
+    private _items: OrderItem[],
     private _version: number = 1 // Optimistic Concurrency Control
   ) {}
 
@@ -62,11 +62,11 @@ export class Order {
     id: OrderId,
     customerId: CustomerId,
     status: OrderStatus,
-    items: OrderItem[],
     total: Money,
+    items: OrderItem[],
     version: number
   ): Order {
-    return new Order(id, customerId, status, items, total, version);
+    return new Order(id, customerId, status, total, items, version);
   }
 
   public get id(): OrderId { return this._id; }
@@ -120,6 +120,7 @@ export class OrderMapper {
   ): Order {
     const items = itemRecords.map(item =>
       new OrderItem(
+        new OrderItemId(item.id),
         new ProductId(item.product_id),
         Money.cents(item.price_cents, item.currency),
         item.quantity
@@ -130,8 +131,8 @@ export class OrderMapper {
       new OrderId(record.id),
       new CustomerId(record.customer_id),
       record.status as OrderStatus,
-      items,
       Money.cents(record.total_amount_cents, record.currency),
+      items,
       record.version
     );
   }
@@ -152,11 +153,11 @@ export class OrderMapper {
     };
 
     const itemRecords: OrderItemTableRecord[] = order.items.map(item => ({
-      id: crypto.randomUUID(),
+      id: item.id.value,
       order_id: order.id.value,
       product_id: item.productId.value,
-      price_cents: item.price.cents,
-      currency: item.price.currency,
+      price_cents: item.unitPrice.cents,
+      currency: item.unitPrice.currency,
       quantity: item.quantity,
     }));
 
@@ -221,7 +222,6 @@ export class PostgresOrderRepository implements OrderRepositoryPort {
           `Order ${order.id.value} was concurrently modified. Expected version ${order.version}.`
         );
       }
-      );
 
       // 2. Synchronize Child Items (Aggregate Boundary)
       await tx.query("DELETE FROM order_items WHERE order_id = $1", [orderRecord.id]);

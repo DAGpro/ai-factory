@@ -1,6 +1,6 @@
 # Explicit Architecture (Clean / Hexagonal / DDD)
 
-Explicit Architecture (also known as Clean Architecture, Onion Architecture, or Ports & Adapters) places the business domain at the center of the system. 
+Explicit Architecture (also known as Clean Architecture, Onion Architecture, or Ports & Adapters) places the business domain at the center of the system.
 
 Frameworks, databases, user interfaces, and external APIs are treated as peripheral details that plug into the domain through well-defined interfaces. Dependencies always point **inward** — outer layers depend on inner layers, and inner layers NEVER import from outer layers.
 
@@ -18,7 +18,7 @@ As systems grow in complexity and business rules evolve over years, coupling bus
 
 ### Domain-Driven Design (DDD) in Context
 
-**Domain-Driven Design (DDD)** is primarily about domain modeling: discovering a ubiquitous language, identifying bounded contexts, and organizing business rules into aggregates, entities, and value objects. DDD is **not** a folder structure. 
+**Domain-Driven Design (DDD)** is primarily about domain modeling: discovering a ubiquitous language, identifying bounded contexts, and organizing business rules into aggregates, entities, and value objects. DDD is **not** a folder structure.
 
 Explicit Architecture provides the structural container that allows DDD concepts to be implemented cleanly and protected from infrastructure pollution.
 
@@ -69,7 +69,10 @@ Within each bounded context (`[ContextName]`), code can be organized in three st
 2. **Vertical Slices:** Each entity slice contains its own Application, Infrastructure, and Presentation subfolders. Domain remains shared across slices in the context.
 3. **Flat Vertical Slices:** Omits internal layer subfolders within the slice, placing handlers, actions, and DTOs side-by-side.
 
-> **Note on Naming & Casing Flexibility:** Ring directories (`Domain/`, `Application/`, `Infrastructure/`, `Presentation/`) and subfolders (`Ports/`) represent conceptual architectural roles. There is zero hard lock-in to literal PascalCase or folder paths: adapt casing (`snake_case`, `kebab-case`, `lowercase`) and idiomatic synonyms (`UseCases/` for `Application/`, `Interfaces/` for `Ports/`, `Delivery/` for `Presentation/`) to your target language and framework conventions.
+> **Note on Naming & Casing Flexibility:**
+> Ring directories (`Domain/`, `Application/`, `Infrastructure/`, `Presentation/`) and subfolders (`Ports/`) represent conceptual architectural roles. There is zero hard lock-in to literal PascalCase or folder paths:
+> - Adapt casing (`snake_case`, `kebab-case`, `lowercase`) to your target language conventions.
+> - Use idiomatic synonyms (`UseCases/` for `Application/`, `Interfaces/` for `Ports/`, `Delivery/` for `Presentation/`) where your framework prefers them.
 
 ---
 
@@ -91,12 +94,12 @@ src/
 │   │   └── Exceptions/                         # Domain-specific business exceptions
 │   │
 │   ├── Application/                            # ALL USE CASES (orchestration)
-│   │   # ── Style 2: Unified Multi-Action (default) ──
+│   │   # ── Style 2: Unified Multi-Action ──
 │   │   ├── [EntityName]/
 │   │   │   ├── [EntityName]Service.{ext}
 │   │   │   └── [FeatureName]Dto.{ext}          # DTO next to the unified service
 │   │   └── [ProcessName]Service.{ext}          # Cross-entity workflow (e.g. PlaceOrderService)
-│   │   # ── Style 1: Feature Subfolders (alternative) ──
+│   │   # ── Style 1: Feature Subfolders ──
 │   │   # ├── [FeatureName]/
 │   │   # │   ├── [FeatureName]Handler.{ext}
 │   │   # │   └── [FeatureName]Dto.{ext}
@@ -110,12 +113,12 @@ src/
 │   │
 │   └── Presentation/                           # PRESENTATION (inbound driving delivery adapters)
 │       ├── Api/                                # HTTP / REST / GraphQL endpoints
-│       │   # ── Style 2: Unified Multi-Action (default) ──
+│       │   # ── Style 2: Unified Multi-Action ──
 │       │   ├── Admin/                          # [Channel] folder — Backoffice API
 │       │   │   └── [EntityName]Controller.{ext}
 │       │   └── Public/                         # [Channel] folder — Public API
 │       │       └── [EntityName]Controller.{ext}
-│       │   # ── Style 1: Feature Subfolders (alternative) ──
+│       │   # ── Style 1: Feature Subfolders ──
 │       │   # └── [Channel]/[FeatureName]/[FeatureName]Action.{ext}
 │       ├── Consumers/                          # Inbound event listeners (Kafka, RabbitMQ, SQS message consumers)
 │       │   └── [EntityName]EventConsumer.{ext} # Dispatches incoming messages to Application Services
@@ -160,22 +163,27 @@ src/
 │   │   │   │   ├── Schemas/                    # Shared validation schemas
 │   │   │   │   └── Dtos/                       # Base DTOs
 │   │   │   │
-│   │   │   ├── Application/                    # Entity-scoped use cases (handlers)
-│   │   │   │   ├── Create[EntityName]/         # Style 1: Feature Subfolder
+│   │   │   ├── Application/                    # Entity-scoped use cases
+│   │   │   │   # ── Style 1: Feature Subfolders ──
+│   │   │   │   ├── Create[EntityName]/         # Dedicated folder per use case
 │   │   │   │   │   ├── Create[EntityName]Handler.{ext}
 │   │   │   │   │   └── Create[EntityName]Dto.{ext}
-│   │   │   │   ├── Update[EntityName]/         # Style 1: Feature Subfolder
+│   │   │   │   ├── Update[EntityName]/
 │   │   │   │   │   ├── Update[EntityName]Handler.{ext}
 │   │   │   │   │   └── Update[EntityName]Dto.{ext}
 │   │   │   │   └── Get[EntityName]/            # Query use case
 │   │   │   │       ├── Get[EntityName]Handler.{ext}
 │   │   │   │       └── Get[EntityName]Dto.{ext}
+│   │   │   │   # ── Style 2: Unified Multi-Action ──
+│   │   │   │   # ├── [EntityName]Service.{ext} # Unified service for all entity use cases
+│   │   │   │   # └── [FeatureName]Dto.{ext}    # DTOs next to the unified service
 │   │   │   │
 │   │   │   ├── Infrastructure/                 # Entity-specific persistence adapters
 │   │   │   │   └── [EntityName]Repository.{ext}
 │   │   │   │
 │   │   │   └── Presentation/                   # Delivery layer with explicit Channels
 │   │   │       ├── Api/
+│   │   │       │   # ── Style 1: Feature Subfolders ──
 │   │   │       │   ├── Admin/                  # [Channel] Admin Backoffice API
 │   │   │       │   │   ├── _Shared/            # Intra-channel shared (admin filters, serializers)
 │   │   │       │   │   ├── Create[EntityName]/
@@ -186,25 +194,46 @@ src/
 │   │   │       │       ├── _Shared/            # Intra-channel shared (public query params)
 │   │   │       │       └── Get[EntityName]/
 │   │   │       │           └── Get[EntityName]Action.{ext}
+│   │   │       │   # ── Style 2: Unified Multi-Action ──
+│   │   │       │   # ├── Admin/
+│   │   │       │   # │   ├── _Shared/
+│   │   │       │   # │   └── [EntityName]Controller.{ext}
+│   │   │       │   # └── Public/
+│   │   │       │   #     ├── _Shared/
+│   │   │       │   #     └── [EntityName]Controller.{ext}
 │   │   │       ├── Web/                        # HTML views & SSR controllers (for Fullstack)
 │   │   │       │   ├── _Shared/
 │   │   │       │   │   └── Components/         # Cross-channel UI forms (e.g. [EntityName]Form.{ext})
+│   │   │       │   # ── Style 1: Feature Subfolders ──
 │   │   │       │   ├── Admin/                  # Admin channel views
 │   │   │       │   │   ├── _Shared/            # Admin-only UI (e.g. AdminUserTable.{ext})
 │   │   │       │   │   └── Edit[EntityName]/   # Uses _Shared/Components/[EntityName]Form.{ext}
 │   │   │       │   └── Public/                 # Public channel views
 │   │   │       │       └── View[EntityName]/
+│   │   │       │   # ── Style 2: Unified Multi-Action ──
+│   │   │       │   # ├── Admin/
+│   │   │       │   # │   ├── _Shared/
+│   │   │       │   # │   └── [EntityName]Controller.{ext}
+│   │   │       │   # └── Public/
+│   │   │       │   #     └── [EntityName]Controller.{ext}
 │   │   │       └── Cli/
 │   │   │           └── [EntityName]Command.{ext}
 │   │   │
 │   │   └── [ProcessName]/                      # Process slice — cross-entity orchestration (e.g. Checkout)
 │   │       ├── Application/
+│   │       │   # ── Style 1: Feature Subfolders ──
 │   │       │   ├── [ProcessName]Handler.{ext}
 │   │       │   └── [ProcessName]Dto.{ext}
+│   │       │   # ── Style 2: Unified Multi-Action ──
+│   │       │   # ├── [ProcessName]Service.{ext}
+│   │       │   # └── [ProcessName]Dto.{ext}
 │   │       ├── Infrastructure/
 │   │       └── Presentation/
 │   │           └── Api/
+│   │               # ── Style 1: Feature Subfolders ──
 │   │               └── [ProcessName]Action.{ext}
+│   │               # ── Style 2: Unified Multi-Action ──
+│   │               # └── [ProcessName]Controller.{ext}
 │   │
 │   └── Infrastructure/                         # Cross-slice adapters within context
 │
@@ -215,7 +244,7 @@ src/
 
 ### Variant C: Folder Structure — Flat Vertical Slices
 
-For smaller entities or when striving for maximum locality (cohesion), the formal `Application/`, `Infrastructure/`, and `Presentation/` subfolders within slices are omitted. 
+For smaller entities or when striving for maximum locality (cohesion), the formal `Application/`, `Infrastructure/`, and `Presentation/` subfolders within slices are omitted.
 
 When multiple channels exist, `[Channel]` folders group the feature endpoints, while `_Shared/` prevents duplication and lateral imports (in strictly flat single-folder setups, use prefixing instead: `[Channel][EntityName]Controller.{ext}`, e.g. `AdminUserController.{ext}`):
 
@@ -232,6 +261,7 @@ src/
 │   │   │   │   ├── [EntityName]Schema.{ext}    # Validation schema
 │   │   │   │   └── [EntityName]Dto.{ext}       # Base DTO
 │   │   │   │
+│   │   │   # ── Style 1: Feature Subfolders ──
 │   │   │   ├── Admin/                          # [Channel] Admin Backoffice
 │   │   │   │   ├── _Shared/                    # Intra-channel shared (admin filters, admin UI)
 │   │   │   │   ├── Create[EntityName]/         # Feature folder
@@ -250,12 +280,22 @@ src/
 │   │   │   │       ├── Get[EntityName]Handler.{ext}
 │   │   │   │       └── Get[EntityName]Dto.{ext}
 │   │   │   │
+│   │   │   # ── Style 2: Unified Multi-Action ──
+│   │   │   # ├── [Channel][EntityName]Controller.{ext} # Unified controller per channel (e.g. AdminUserController)
+│   │   │   # ├── [EntityName]Service.{ext}    # Unified service for all entity use cases
+│   │   │   # ├── [FeatureName]Dto.{ext}       # DTOs next to the unified service
+│   │   │   │
 │   │   │   └── [EntityName]Repository.{ext}    # Data access adapter
 │   │   │
 │   │   └── [ProcessName]/                      # Flat process slice
+│   │       # ── Style 1: Feature Subfolders ──
 │   │       ├── [ProcessName]Action.{ext}
 │   │       ├── [ProcessName]Handler.{ext}
 │   │       └── [ProcessName]Dto.{ext}
+│   │       # ── Style 2: Unified Multi-Action ──
+│   │       # ├── [ProcessName]Controller.{ext}
+│   │       # ├── [ProcessName]Service.{ext}
+│   │       # └── [ProcessName]Dto.{ext}
 │   │
 │   └── Infrastructure/
 │
@@ -273,11 +313,15 @@ src/
    - *Aggregate Folders:* When an entity is an Aggregate Root with child entities (e.g. `Order` and `OrderItem`), group them in a dedicated folder: `Domain/[AggregateName]/`.
    - *Domain Services:* Pure business rules that span multiple entities without I/O live in `Domain/Services/`.
 3. **Ports and Adapters:** The domain defines interfaces (ports) for all I/O dependencies. Infrastructure implements these interfaces (adapters). Dependencies point strictly inward.
-4. **CQRS & Query Optimization (Bypass Domain for Reads):** While separate read databases or Event Sourcing are optional, separating **Commands (Write Path)** from **Queries (Read Path)** is essential for performance. Commands load Aggregate Roots to enforce invariants and persist state. Queries completely bypass the Domain layer and fetch flat, read-optimized DTOs directly from the database using SQL or ORM projections, eliminating N+1 performance cascades (see [Domain Modeling](./DOMAIN-MODELING.md#6-cqrs--query-optimization-read-path-vs-write-path)).
+4. **CQRS & Query Optimization (Bypass Domain for Reads):** While separate read databases or Event Sourcing are optional, separating **Commands (Write Path)** from **Queries (Read Path)** is essential for performance:
+   - *Commands (Write Path):* Load Aggregate Roots to enforce invariants and persist state.
+   - *Queries (Read Path):* Completely bypass the Domain layer and fetch flat, read-optimized DTOs directly from the database using SQL or ORM projections, eliminating N+1 performance cascades (see [Domain Modeling](./DOMAIN-MODELING.md#6-cqrs--query-optimization-read-path-vs-write-path)).
 5. **Port Abstraction for External Dependencies:** All persistence, network clients, messaging publishers, and file storage must be accessed exclusively through domain interfaces. This enables 100% isolated unit testing and trivial swapping of technical drivers.
 6. **Domain-Specific Repositories (No Generic Repositories):** Repository port interfaces in `Domain/Ports/` must speak the ubiquitous language of the business (e.g. `findActiveOrdersByCustomer(customerId)`), rather than generic abstractions like `IRepository<T>` with `GetAll()` or `IQueryable` query expressions.
 7. **Pull-Based Domain Events:** Domain entities record events in an internal buffer (`pullDomainEvents()`). The Application Service retrieves and dispatches these events to message brokers strictly **after** the database transaction commits (or via Transactional Outbox). Domain entities must never perform network I/O or publish events directly.
-8. **Small Aggregates & Reference by ID Only:** Aggregates must remain small and protect immediate transactional invariants. Cross-aggregate references MUST be held strictly by identifier (e.g., `CustomerId`), never by direct object reference or ORM navigation properties (`@ManyToOne`), preventing cascading dirty-checks and transaction locks (see [Persistence & ORM](./PERSISTENCE-AND-ORM.md#3-cross-aggregate-references-identity-only-vs-orm-navigation-properties)).
+8. **Small Aggregates & Reference by ID Only:** Aggregates must remain small and protect immediate transactional invariants:
+   - Hold cross-aggregate references strictly by identifier (e.g., `CustomerId`), never by direct object reference or ORM navigation properties (`@ManyToOne`).
+   - This prevents cascading dirty-checks and transaction locks (see [Persistence & ORM](./PERSISTENCE-AND-ORM.md#3-cross-aggregate-references-identity-only-vs-orm-navigation-properties)).
 9. **Unified Driving Adapters (HTTP, Async Consumers, Cron, CLI):** The Presentation layer acts as the unified boundary for all incoming triggers. HTTP controllers, Kafka/RabbitMQ message consumers, background scheduler jobs, and CLI commands all act identically as **Inbound Driving Adapters**: they parse/validate incoming transport payloads and dispatch inward by invoking Application Services.
 
 ---

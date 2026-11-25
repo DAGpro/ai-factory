@@ -4,8 +4,8 @@ These language-agnostic examples illustrate core architectural concepts: **Rich 
 
 When generating `.ai-factory/ARCHITECTURE.md`, adapt these patterns to the project's chosen programming language and framework idioms.
 
-> ⚠️ **Zero Naming & Casing Lock-in (Conceptual Code Notation):**  
-> TypeScript is used here strictly as a readable, universally understandable pseudo-code notation. Class names (`OrderId`, `OrderRepositoryPort`), method signatures, and directory paths in comments (`src/ordering/domain/Order.ts`, `Domain/Ports/`) are **purely illustrative architectural roles**.  
+> ⚠️ **Zero Naming & Casing Lock-in (Conceptual Code Notation):**
+> TypeScript is used here strictly as a readable, universally understandable pseudo-code notation. Class names (`OrderId`, `OrderRepositoryPort`), method signatures, and directory paths in comments (`src/ordering/domain/Order.ts`, `Domain/Ports/`) are **purely illustrative architectural roles**.
 > - **In Python:** Translates to `snake_case` files (`order.py`, `order_repository.py`), standard `@dataclass` models, and `typing.Protocol` interfaces.
 > - **In Go:** Translates to lowercase packages (`internal/order/`), with ports and domain types co-located in `order.go` and `ports.go`.
 > - **In C# / Java:** Translates to `Order.cs`, `IOrderRepository.cs`, or Java records.
@@ -82,9 +82,9 @@ class Order {
     // Invariant: If item already exists in order, increment quantity
     const existingIndex = this._items.findIndex(item => item.productId.equals(product.id));
     if (existingIndex >= 0) {
-      this._items[existingIndex] = this._items[existingIndex].increaseQuantity(quantity);
+      this._items[existingIndex].increaseQuantity(quantity);
     } else {
-      this._items.push(new OrderItem(product.id, product.price, quantity));
+      this._items.push(new OrderItem(new OrderItemId(crypto.randomUUID()), product.id, product.price, quantity));
     }
 
     this.recalculateTotal(); // State mutation is strictly internal
@@ -100,7 +100,7 @@ class Order {
 
     this._status = OrderStatus.Finalized;
     this._total = computedTotal;
-    
+
     // Domain event buffered for post-transaction dispatch
     this._domainEvents.push(new OrderFinalizedEvent(this._id, this._customerId, this._total));
   }
@@ -156,7 +156,7 @@ class OrderService {
 
     // ❌ WRONG: Outside code manipulates internal entity collection directly
     order.items.push({ productId: product.id, price: product.price, quantity });
-    
+
     // ❌ WRONG: Calculation performed outside the model, prone to calculation drift
     order.total = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   }
@@ -195,6 +195,13 @@ class Money {
   public plus(other: Money): Money {
     this.assertSameCurrency(other);
     return new Money(this._amount + other._amount, this._currency);
+  }
+
+  public times(multiplier: number): Money {
+    if (multiplier < 0) {
+      throw new NegativeMoneyException("Multiplier cannot be negative");
+    }
+    return new Money(Math.round(this._amount * multiplier), this._currency);
   }
 
   public applyDiscountPercentage(percentage: number): Money {
@@ -409,7 +416,7 @@ class PlaceOrderService {
 
 ## 6. CQRS & Query Optimization (Read Path vs. Write Path)
 
-In Domain-Driven Design and Explicit Architecture, treating Read operations and Write operations symmetrically is a major anti-pattern. 
+In Domain-Driven Design and Explicit Architecture, treating Read operations and Write operations symmetrically is a major anti-pattern.
 
 ### ❌ The Anti-Pattern: Routing Reads Through Aggregate Roots
 ```text
@@ -468,11 +475,11 @@ class GetCustomerOrdersHandler {
 
     // Single optimized SQL query with JOIN and COUNT: zero Domain Aggregates hydrated!
     const rows = await this.db.query<OrderSummaryRow>(
-      `SELECT 
-         o.id AS order_id, 
-         o.status, 
-         o.total_cents, 
-         o.currency, 
+      `SELECT
+         o.id AS order_id,
+         o.status,
+         o.total_cents,
+         o.currency,
          o.created_at,
          COUNT(i.id) AS item_count
        FROM orders o
@@ -509,7 +516,10 @@ A common source of confusion in DDD is where validation belongs. Validation oper
 | **Scope** | Data types, required fields, string length, regex patterns, email formats, numeric ranges | Business rules, state machine transitions, balances, stock availability, credit limits |
 | **Failure Response** | HTTP `400 Bad Request` / `422 Unprocessable Entity` | Domain Exception ➔ mapped to HTTP `409 Conflict` / `422` |
 
-> 💡 **CQRS & Application Pipeline Note:** In CQRS architectures, syntactic payload validation may occur either in the Presentation layer (controller/middleware) or upon entry to the Application layer (e.g. via pipeline behaviors, command handler middleware, or constructor validation on Command/Query DTOs). In either case, the fundamental boundary rule holds: syntactic input validation rejects malformed structures before domain entities or domain services are invoked.
+> 💡 **CQRS & Application Pipeline Note:**
+> In CQRS architectures, syntactic payload validation may occur either in the Presentation layer (controller/middleware) or upon entry to the Application layer (via pipeline behaviors, command handler middleware, or constructor validation on Command/Query DTOs).
+>
+> In either case, the fundamental boundary rule holds: syntactic input validation rejects malformed structures before domain entities or domain services are invoked.
 
 ### Code Example: Two-Tier Validation
 
@@ -770,6 +780,7 @@ class OrderItem {
   // Read-only getters...
   public get id(): OrderItemId { return this._id; }
   public get productId(): ProductId { return this._productId; }
+  public get unitPrice(): Money { return this._unitPrice; }
   public get quantity(): number { return this._quantity; }
 }
 
@@ -780,7 +791,7 @@ class Order {
     if (this._status !== OrderStatus.Draft) {
       throw new CannotModifyFinalizedOrderException(this._id);
     }
-    
+
     // Creator pattern: Order creates and tracks OrderItem
     const existing = this._items.find(i => i.productId.equals(product.id));
     if (existing) {
@@ -789,7 +800,7 @@ class Order {
       const newItem = new OrderItem(new OrderItemId(crypto.randomUUID()), product.id, product.price, quantity);
       this._items.push(newItem);
     }
-    
+
     this.recalculateTotal(); // Immediate transactional consistency
   }
 }
@@ -805,4 +816,3 @@ When applying Clean Architecture:
 1. **Domain Services (`PricingService`):** Invented when a business calculation spans multiple entities (Order and Customer) so neither entity is coupled to the other.
 2. **Data Mappers (`OrderMapper`):** Invented so the `Order` entity remains 100% pure TypeScript/Python/Java, with zero knowledge of database tables, column names, or SQL types.
 3. **Factories & Specifications (`OrderCanBeCancelledSpecification`):** Invented to encapsulate complex validation predicates or creation mechanics outside the entity body.
-

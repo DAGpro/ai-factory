@@ -45,16 +45,16 @@ When a team maintains an individual service in its own Git repository:
 [ServiceName]/
 ├── src/
 │   ├── Api/                                    # Inbound adapters (HTTP REST / gRPC handlers)
-│   │   # ── Style 2: Unified Multi-Action (default) ──
+│   │   # ── Style 2: Unified Multi-Action ──
 │   │   ├── [EntityName]Controller.{ext}
 │   │   └── Middleware/                         # Auth, rate limiting, logging
-│   │   # ── Style 1: Feature Subfolders (alternative) ──
+│   │   # ── Style 1: Feature Subfolders ──
 │   │   # └── [FeatureName]/[FeatureName]Controller.{ext}
 │   │
 │   ├── Application/                            # Use cases & application orchestration
-│   │   # ── Style 2: Unified Multi-Action (default) ──
+│   │   # ── Style 2: Unified Multi-Action ──
 │   │   └── [EntityName]Service.{ext}
-│   │   # ── Style 1: Feature Subfolders (alternative) ──
+│   │   # ── Style 1: Feature Subfolders ──
 │   │   # └── [FeatureName]/
 │   │   #     ├── [FeatureName]Service.{ext}
 │   │   #     └── [FeatureName]Dto.{ext}

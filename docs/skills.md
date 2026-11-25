@@ -565,9 +565,18 @@ Generates architecture guidelines tailored to your project:
 /aif-architecture microservices-single # Use Microservices (Single Service Repository)
 /aif-architecture microservices-monorepo # Use Microservices (Monorepo)
 /aif-architecture microservices # Asks the user which repository structure variant to use
-/aif-architecture structured --policy=adapt # Pattern + adapt policy; variant and style detected from the existing code
+/aif-architecture structured --policy=adapt # Pattern + adapt policy; detects existing variant to confirm interactively
 ```
-*Note: `clean`, `ddd`, `monolith`, and `vertical` are legacy aliases mapped to current patterns. Every pattern except Layered resolves an action organization style (`--style=subfolders|unified`: Feature Subfolders or Unified Multi-Action; vertical slice variants default to Feature Subfolders, technical-layer variants and Microservices default to Unified Multi-Action), and the alignment policy on existing codebases is pre-selected via `--policy=adapt|strict` — each flag takes one value. On existing codebases the survey detects the de-facto structural variant and action style when the evidence is unambiguous and confirms them (non-interactive runs report the detection as an assumption; under strict over discrepancies or ambiguous evidence the variant is chosen explicitly); unresolved material decisions are returned as one `BLOCKED` payload.*
+**Notes & Flags:**
+- **Legacy aliases:** `clean`, `ddd`, `monolith`, and `vertical` map to current patterns.
+- **Action organization style (`--style=subfolders|unified`):** Required for every pattern except Layered (`subfolders` = Feature Subfolders, `unified` = Unified Multi-Action; takes one value).
+- **Alignment policy (`--policy=adapt|strict`):** Pre-selects the alignment policy on existing codebases (takes one value).
+- **Existing-codebase detection:** When evidence is unambiguous, the survey detects the de-facto structural variant and action style for interactive confirmation.
+- **Non-interactive mode:**
+  - An unresolved structural variant or action style returns `BLOCKED` (detection does not authorize a material architecture choice).
+  - Any other unresolved material decision returns a `BLOCKED` payload.
+
+**How it works:**
 - Reads the resolved description artifact for project context
 - Recommends architecture pattern based on team size, domain complexity, and tech stack
 - Reads `.ai-factory/config.yaml` for `paths.description`, `paths.architecture`, `language.ui`, and `language.artifacts`

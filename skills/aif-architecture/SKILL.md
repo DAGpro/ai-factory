@@ -69,7 +69,7 @@ Execute the steps below in order. Do not write the architecture artifact or upda
    - `language.ui` — default `en`; use for questions and user-facing reports.
    - `language.artifacts` — default `en`; use for generated or updated Markdown artifacts.
    The configuration document's root must be a YAML mapping. If `paths` or `language` is present, each must also be a YAML mapping. If either language key is present, it must be a non-empty string. Otherwise return `BLOCKED`; do not guess or silently fall back.
-3. For each path key, use its default only when the key is absent. If a key is present but is not a non-empty string, return `BLOCKED`; do not silently fall back to the default. Paths must be project-relative; reject absolute paths. Normalize `.` and `..` segments and reject any path that escapes the project root. Normalize the resolved paths before comparing them using the host filesystem's path-comparison semantics (including case sensitivity). Do not expand environment variables or `~`. If any existing path component is a symlink, verify that its target remains inside the project root using available read-only tooling; if this cannot be established, return `BLOCKED` rather than writing through an unverified symlink. When symlinks are present, compare both the normalized paths and their verified canonical destinations for collisions.
+3. For each path key, use its default only when the key is absent; if present but not a non-empty string, return `BLOCKED` instead of falling back. Require project-relative paths (reject absolute paths), normalize `.` and `..` segments, reject any path escaping the project root, and do not expand environment variables or `~`. Normalize resolved paths using the host filesystem's comparison semantics (including case sensitivity) before checking for collisions. If any existing path component is a symlink, verify via available read-only tooling that its target stays inside the project root; if this cannot be established, return `BLOCKED` instead of writing through an unverified symlink. Compare both normalized paths and verified canonical destinations for collisions.
 4. If the resolved architecture path is the same as the DESCRIPTION path, or either path resolves to root `AGENTS.md`, return `BLOCKED` before any write; these path collisions could overwrite project context or a companion file.
 5. If invoked by `/aif`, use the configuration written for that setup run; do not re-resolve language choices or ask for them again.
 6. Read the resolved DESCRIPTION file if it exists. If it exists but is unreadable, return `BLOCKED` with its path. Extract:
@@ -136,7 +136,7 @@ Apply these sources in descending order of authority:
 4. The workflow's detection rules applied to repository evidence.
 5. Declared defaults in this skill and its references.
 
-Do not reuse choices from earlier, separate architecture runs unless the user explicitly repeats them in the current run. A lower-priority source must never override a higher-priority choice. Within the same priority level, use the latest unambiguous explicit user instruction in the current architecture run. For repeated command options, use the last valid occurrence as specified in Step 3.1. If chronology does not resolve conflicting explicit choices, ask one focused question in interactive mode or return `BLOCKED` in non-interactive mode. Configuration values are authoritative only for the configuration keys explicitly resolved in Step 0; they do not silently select a pattern, variant, style, or alignment policy. Do not infer approval from a default, recommendation, or preselected option.
+Do not reuse choices from earlier, separate architecture runs unless the user explicitly repeats them in the current run. A lower-priority source must never override a higher-priority choice. Within the same priority level, use the latest unambiguous explicit user instruction in the current run (for repeated command options, use the last valid occurrence per Step 3.1). If chronology does not resolve conflicting explicit choices, ask one focused question in interactive mode or return `BLOCKED` in non-interactive mode. Configuration values are authoritative only for the keys explicitly resolved in Step 0; they do not silently select a pattern, variant, style, or alignment policy. Do not infer approval from a default, recommendation, or preselected option.
 
 ### Step 3: Resolve the architecture pattern
 
@@ -271,7 +271,8 @@ The following are not discrepancies by themselves:
 
 Resolve the policy as follows:
 
-First determine whether any discrepancy exists. If there are no discrepancies, the policy is fixed as `Strict (already conforming)` and every Adapt/Strict choice or `--policy` value is a no-op; report the supplied choice/value as ignored. Do not ask for a policy choice. If one or more discrepancies exist, use an unambiguous explicit user choice of Adapt or Strict, whether supplied in natural language or as the last valid `--policy` value parsed in Step 3.1. A malformed or unsupported option value is reported and ignored. If no explicit choice remains, treat the policy as unspecified.
+1. Determine whether any discrepancy exists. If none exist, fix the policy as `Strict (already conforming)` and report any Adapt/Strict choice or `--policy` value as an ignored no-op; do not ask for a policy choice.
+2. If one or more discrepancies exist, use an unambiguous explicit user choice of Adapt or Strict (in natural language or as the last valid `--policy` value parsed in Step 3.1). Report and ignore malformed or unsupported option values; if no explicit choice remains, treat the policy as unspecified.
 
 **No discrepancies — conforming**
 
@@ -292,7 +293,7 @@ Without a valid explicit policy choice:
 Policy semantics:
 
 - **Adapt:** the generated folder tree and dependency rules describe the selected target architecture. Add a clearly labelled `Current-State Deviations` subsection that records the actual existing locations and explains which target rules they do not yet satisfy. Do not present those deviations as allowed target dependencies.
-- **Strict:** generate the canonical target tree and dependency rules purely according to the chosen pattern without compromising for existing files. Add `Legacy vs New Code Policy` where non-conforming existing code is isolated logically without physical file relocation. Existing non-conforming locations are treated as frozen legacy boundaries: no physical files are moved or renamed automatically by this skill. Include concrete migration instructions: a mapping of existing non-conforming paths to their target architectural locations, along with required namespace, configuration, and binding updates. The user decides whether to physically relocate legacy code into a dedicated quarantine folder or refactor it into the target architecture in future tasks. New code follows the target architecture; unrelated legacy code is not automatically refactored or moved. Migrate legacy code only when a planned task explicitly touches that area or the user requests a refactor.
+- **Strict:** generate the canonical target tree and dependency rules purely according to the chosen pattern without compromising for existing files. Add `Legacy vs New Code Policy` where non-conforming existing code is isolated logically without physical file relocation (existing non-conforming locations stay frozen; no files are moved or renamed automatically). Include concrete migration instructions: map existing non-conforming paths to target architectural locations, with required namespace, configuration, and binding updates. The user decides whether to physically relocate legacy code into a dedicated quarantine folder or refactor it into the target architecture in future tasks. New code follows the target architecture; migrate legacy code only when a planned task explicitly touches that area or the user requests a refactor.
 
 The alignment policy does not apply to Clean projects. Any natural-language Adapt/Strict choice or `--policy` value on a Clean project is a no-op; report it as ignored. For a conforming Existing codebase, use `Strict (already conforming)` regardless of an Adapt/Strict choice or `--policy` value, report that choice/value as a no-op, and do not create an Adapt or legacy-quarantine section.
 
@@ -302,19 +303,16 @@ Layered Architecture has no style choice. It always uses unified per-entity Cont
 
 For all other patterns, use one style consistently throughout the generated folder tree:
 
-- **Style 1 — Feature Subfolders:** each use case has its own `[FeatureName]/` folder in every layer it touches, including delivery. Put its use-case DTO in the corresponding feature folder. Shared backend schemas and base DTOs belong in entity-level `_Shared/` (`Slices/[EntityName]/_Shared/`), intra-channel assets in `[Channel]/_Shared/`, and cross-channel UI in `Presentation/Web/_Shared/Components/`, as prescribed by `references/INDEX.md`; feature folders must not import directly from sibling feature folders.
+- **Style 1 — Feature Subfolders:** each use case has its own `[FeatureName]/` folder in every layer it touches, including delivery, with its use-case DTO placed inside that feature folder. Shared backend schemas and base DTOs belong in entity-level `_Shared/` (`Slices/[EntityName]/_Shared/`), intra-channel assets in `[Channel]/_Shared/`, and cross-channel UI in `Presentation/Web/_Shared/Components/`, as prescribed by `references/INDEX.md`; feature folders must not import directly from sibling feature folders.
 - **Style 2 — Unified Multi-Action:** use per-entity Controller/Service files and place related DTOs next to the service, following the selected pattern reference.
 
 Resolve style in this order, using an unambiguous explicit user choice of Style 1 or Style 2, whether supplied in natural language or as the last valid `--style` value parsed in Step 3.1. A malformed or unsupported option value is reported and ignored; if no explicit choice remains, style is unspecified.
 
-1. A valid `--style=subfolders` selects Style 1.
-2. A valid `--style=unified` selects Style 2.
-3. When no valid explicit style was supplied in arguments:
-   - Interactive mode: do NOT apply a default automatically. Always prompt the user to choose between Style 1 (Feature Subfolders) and Style 2 (Unified Multi-Action). Present the recommendation based on the detected style or pattern/variant default, but require the user's explicit selection.
-   - Non-interactive mode: use the detected style if clear (reporting the assumption), otherwise use the pattern/variant default:
-     - Vertical-slice variants → Style 1.
-     - Technical-layer variants → Style 2.
-     - Microservices → Style 2.
+1. A valid `--style=subfolders` or an unambiguous natural-language choice of Style 1 selects Style 1.
+2. A valid `--style=unified` or an unambiguous natural-language choice of Style 2 selects Style 2.
+3. When no valid explicit style was supplied (neither in arguments nor in natural language):
+   - Interactive mode: if an existing codebase clearly demonstrates one style, show that evidence and ask the user whether to keep it or choose the other style; otherwise present Style 1 (Feature Subfolders) and Style 2 (Unified Multi-Action) and require the user's explicit selection.
+   - Non-interactive mode: return `BLOCKED` with the two style options (`--style=subfolders` for Style 1 — Feature Subfolders, and `--style=unified` for Style 2 — Unified Multi-Action), including any clearly detected style and its evidence.
 
 If an explicit style conflicts with the detected style, the explicit choice wins and the mismatch is reported. Repeated and invalid option values follow the parser rules in Step 3.1.
 
@@ -326,7 +324,7 @@ Do not start this step if any required decision remains unresolved.
 
 Generate the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.md`; `paths.architecture` overrides) adapted to the project's tech stack and language.
 
-First generate and validate the complete artifact in `language.artifacts` without modifying the filesystem. Only after the complete content passes validation, create the parent directory if needed using the permitted `mkdir` command, then write the architecture artifact. If a file already exists at the target path, overwrite it directly. Do not write a partial artifact. If generation or validation fails before the final write, leave the existing architecture artifact unchanged and do not create its parent directory.
+First generate and validate the complete artifact in `language.artifacts` without modifying the filesystem. Only after validation passes, create the parent directory if needed using the permitted `mkdir` command, then write the artifact (overwriting directly if a file already exists at the target path). Never write a partial artifact; if generation or validation fails before the final write, leave any existing architecture artifact unchanged and do not create its parent directory.
 
 Use this structure, adapting headings and prose to the artifact language while preserving the semantic meaning of each section:
 
@@ -455,7 +453,7 @@ Before reporting success, validate the result against this checklist:
 - [ ] Companion pointers were changed only after the architecture artifact write succeeded.
 - [ ] The resolved architecture path does not collide with DESCRIPTION.md or root AGENTS.md.
 
-If a check fails or any skill-context rule is violated, correct the artifact or companion pointer before presenting success. If it cannot be corrected safely, report failure and identify the affected path. If an artifact write reports failure, inspect the actual path before reporting its state; do not claim that the previous content remains intact unless it was verified. Do not claim validation that was not performed.
+If any check fails or a skill-context rule is violated, correct the artifact or companion pointer before presenting success; if it cannot be corrected safely, report failure and identify the affected path. If an artifact write reports failure, inspect the actual path before reporting its state; do not claim the previous content remains intact unless verified. Do not claim validation that was not performed.
 
 Present the final report in resolved `language.ui`:
 
@@ -464,7 +462,7 @@ Present the final report in resolved `language.ui`:
 
 [Localized pattern label in `language.ui`]: [canonical pattern-variant name]
 [Localized style label in `language.ui`]: [resolved action organization style; omit for Layered]
-[Localized policy label in `language.ui`]: [resolved alignment policy: adapt or strict]
+[Localized policy label in `language.ui`]: [resolved alignment policy: Not applicable (Clean) / Strict (already conforming) / Adapt / Strict]
 [Localized file label in `language.ui`]: [resolved architecture path]
 
 [Localized assumptions heading in `language.ui`]:

@@ -69,7 +69,7 @@ Once the base pattern is resolved, choose its internal code structure:
 ```text
 IF pattern is STRUCTURED MODULES:
 ├── Many independent features, team parallelism, high AI-agent workflow?
-│   ├── YES ──> Vertical Slices (token: structured-vertical; Style 1: Feature Subfolders)
+│   ├── YES ──> Vertical Slices (token: structured-vertical)
 │   └── NO  ──> Technical Layers (token: structured-layers; familiar MVC structure)
 
 IF pattern is EXPLICIT ARCHITECTURE:
@@ -159,7 +159,7 @@ All folder structures across all specification modules use consistent placeholde
 
 ### Architectural Abstraction vs. Idiomatic Casing (Zero Hard Lock-in)
 
-> **Core Principle for AI Agents and Engineers:**  
+> **Core Principle for AI Agents and Engineers:**
 > The PascalCase folder names (e.g. `Controllers/`, `Services/`, `Domain/`, `Application/`, `Presentation/`) used throughout this reference are **architectural abstractions** used for universal readability. They define **conceptual layer roles, boundary responsibilities, and dependency directions** — NOT rigid literal folder paths or strict casing mandates.
 
 When generating `.ai-factory/ARCHITECTURE.md` or scaffolding project directories:
@@ -181,12 +181,10 @@ When generating `.ai-factory/ARCHITECTURE.md` or scaffolding project directories
 
 ### Action Organization Styles
 
-Every structural variant organizes use cases in one of two styles, chosen once and applied consistently across the whole project:
+Every non-Layered structural variant organizes use cases in one of two styles, chosen once and applied consistently across the whole project (*Layered Architecture* has no style choice — unified multi-action by design):
 
 - **Style 1: Feature Subfolders:** Each use case lives in its own `[FeatureName]/` folder together with its DTO — across every layer it touches (delivery and use-case logic); the exact locations per variant are shown in the folder trees. Maximizes feature isolation and prevents flat directory clutter as features multiply.
 - **Style 2: Unified Multi-Action:** All use cases of an entity are grouped into single per-entity files (`[EntityName]Controller.{ext}`, `[EntityName]Service.{ext}`); DTOs sit next to the service (see the trees). Fewer files, traditional conventions.
-
-**Default style per variant:** vertical slice variants (*Structured Modules Vertical Slices, Explicit Vertical Slices, Flat Vertical Slices*) default to **Style 1**; technical-layer variants (*Structured Modules Technical Layers, Explicit Architectural Layers*) and *Microservices* default to **Style 2**. *Layered Architecture* has no style choice (unified multi-action by design).
 
 #### Shared Assets within Style 1 (CRUD & Form Sharing)
 When multiple feature subfolders of the same entity share assets (e.g., a shared CRUD form template, base DTO, or validation schema between `Create[EntityName]` and `Update[EntityName]`):
@@ -233,7 +231,14 @@ Slices/[EntityName]/
 > **Channel Isolation Rule:** The `Public/` channel must NEVER import files from the `Admin/` channel. Cross-channel shared presentation logic belongs in `Presentation/Web/_Shared/Components/`, while channel-specific shared assets stay inside that channel's `[Channel]/_Shared/`.
 
 ### Role Mapping Across Styles
-`[FeatureName]Action` fills the Controller role (delivery mechanism), `[FeatureName]Handler` fills the Service/Application-Service role (use-case logic), and `[EntityName]Repository` fills the data-access role. Every dependency rule expressed with Controller/Service vocabulary (strict downward flow, no layer skipping, inward dependencies) applies identically to the Action/Handler files — and to their `[FeatureName]Controller` / `[FeatureName]Service` equivalents in the variants whose trees use that naming (Structured Modules Technical Layer, Microservices): an Action (or Controller) must never bypass the Handler (or Service) to call a Repository directly.
+
+The architectural roles map consistently across styles and variants:
+
+- **Delivery (`[FeatureName]Action` / `[EntityName]Controller`):** Handles incoming transport payloads and delegates to the use-case layer.
+- **Use-case logic (`[FeatureName]Handler` / `[EntityName]Service` / `[FeatureName]Service`):** Orchestrates application workflows and coordinates domain models and repositories.
+- **Data access (`[EntityName]Repository`):** Encapsulates persistence operations for the entity.
+
+Every dependency rule expressed with Controller/Service vocabulary (strict downward flow, no layer skipping, inward dependencies) applies identically to `Action`/`Handler` files and to `[FeatureName]Controller`/`[FeatureName]Service` equivalents: an Action or Controller must never bypass the Handler or Service to call a Repository directly.
 
 ---
 

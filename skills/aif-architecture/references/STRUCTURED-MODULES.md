@@ -40,17 +40,17 @@ Within each module, code can be organized in two ways:
 src/
 ├── [ModuleName]/                               # ── FEATURE MODULE ──
 │   ├── Controllers/                            # HTTP handlers, request validation
-│   │   # ── Style 2: Unified Multi-Action (default) ──
+│   │   # ── Style 2: Unified Multi-Action ──
 │   │   └── [EntityName]Controller.{ext}
-│   │   # ── Style 1: Feature Subfolders (alternative) ──
+│   │   # ── Style 1: Feature Subfolders ──
 │   │   # └── [FeatureName]/[FeatureName]Controller.{ext}
 │   │
 │   ├── Services/                               # Application Services (orchestrators)
-│   │   # ── Style 2: Unified Multi-Action (default) ──
+│   │   # ── Style 2: Unified Multi-Action ──
 │   │   ├── [EntityName]Service.{ext}
 │   │   ├── [ProcessName]Service.{ext}          # Cross-entity orchestration (e.g. PlaceOrderService)
 │   │   └── [FeatureName]Dto.{ext}              # DTO next to the orchestrating service
-│   │   # ── Style 1: Feature Subfolders (alternative) ──
+│   │   # ── Style 1: Feature Subfolders ──
 │   │   # ├── [FeatureName]/
 │   │   # │   ├── [FeatureName]Service.{ext}
 │   │   # │   └── [FeatureName]Dto.{ext}
@@ -86,7 +86,7 @@ src/
 │   │   │   │   ├── Schemas/                    # Shared validation schemas
 │   │   │   │   └── Dtos/                       # Base DTOs
 │   │   │   │
-│   │   │   # ── Style 1: Feature Subfolders (default for slices) ──
+│   │   │   # ── Style 1: Feature Subfolders ──
 │   │   │   ├── Create[EntityNameA]/            # Dedicated folder for Create use case
 │   │   │   │   ├── Create[EntityNameA]Action.{ext}
 │   │   │   │   ├── Create[EntityNameA]Handler.{ext}
@@ -95,7 +95,7 @@ src/
 │   │   │   │   ├── Update[EntityNameA]Action.{ext}
 │   │   │   │   ├── Update[EntityNameA]Handler.{ext}
 │   │   │   │   └── Update[EntityNameA]Dto.{ext}
-│   │   │   # ── Style 2: Unified Multi-Action (alternative) ──
+│   │   │   # ── Style 2: Unified Multi-Action ──
 │   │   │   # ├── [EntityNameA]Controller.{ext} # Unified controller for all entity actions
 │   │   │   # ├── [EntityNameA]Service.{ext}    # Unified service for all entity use cases
 │   │   │   # └── [FeatureName]Dto.{ext}
@@ -106,11 +106,11 @@ src/
 │   │   │   └── ...
 │   │   │
 │   │   └── [ProcessName]/                      # Process slice — cross-entity orchestration
-│   │       # ── Style 1: Feature Subfolders (default) ──
+│   │       # ── Style 1: Feature Subfolders ──
 │   │       ├── [ProcessName]Action.{ext}       # Endpoint / Action
 │   │       ├── [ProcessName]Handler.{ext}      # Orchestration logic
 │   │       └── [ProcessName]Dto.{ext}          # DTO
-│   │       # ── Style 2: Unified Multi-Action (alternative) ──
+│   │       # ── Style 2: Unified Multi-Action ──
 │   │       # ├── [ProcessName]Controller.{ext}
 │   │       # ├── [ProcessName]Service.{ext}
 │   │       # └── [ProcessName]Dto.{ext}
