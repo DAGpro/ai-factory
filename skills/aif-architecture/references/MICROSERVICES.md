@@ -46,10 +46,16 @@ When a team maintains an individual service in its own Git repository:
 ├── src/
 │   ├── Api/                                    # Inbound adapters (HTTP REST / gRPC handlers)
 │   │   # ── Style 2: Unified Multi-Action ──
-│   │   ├── [EntityName]Controller.{ext}
+│   │   ├── Admin/                              # [Channel] folder (omit when single-channel)
+│   │   │   └── [EntityName]Controller.{ext}
+│   │   ├── Public/                             # [Channel] folder (omit when single-channel)
+│   │   │   └── [EntityName]Controller.{ext}
 │   │   └── Middleware/                         # Auth, rate limiting, logging
 │   │   # ── Style 1: Feature Subfolders ──
-│   │   # └── [FeatureName]/[FeatureName]Controller.{ext}
+│   │   # ├── [Channel]/
+│   │   # │   ├── _Shared/                    # Intra-channel shared helpers
+│   │   # │   └── [FeatureName]/[FeatureName]Controller.{ext}
+│   │   # └── Middleware/
 │   │
 │   ├── Application/                            # Use cases & application orchestration
 │   │   # ── Style 2: Unified Multi-Action ──

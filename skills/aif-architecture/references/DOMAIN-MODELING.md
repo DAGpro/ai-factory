@@ -268,14 +268,14 @@ class PostgresOrderRepository implements OrderRepositoryPort {
   }
 
   async save(order: Order): Promise<void> {
-    const record = OrderMapper.toPersistence(order);
+    const { orderRecord, itemRecords } = OrderMapper.toPersistence(order);
     await this.db.transaction(async (tx) => {
       await tx.query(
-        "INSERT INTO orders (id, customer_id, status, total_cents, currency) VALUES ($1, $2, $3, $4, $5) " +
-        "ON CONFLICT (id) DO UPDATE SET status = $3, total_cents = $4",
-        [record.id, record.customer_id, record.status, record.total_cents, record.currency]
+        "INSERT INTO orders (id, customer_id, status, total_amount_cents, currency, version) VALUES ($1, $2, $3, $4, $5, 1) " +
+        "ON CONFLICT (id) DO UPDATE SET status = $3, total_amount_cents = $4, version = orders.version + 1 WHERE orders.version = $6",
+        [orderRecord.id, orderRecord.customer_id, orderRecord.status, orderRecord.total_amount_cents, orderRecord.currency, order.version]
       );
-      // Synchronize order items...
+      // Synchronize itemRecords...
     });
   }
 
@@ -619,8 +619,8 @@ class OrderService {
 // Caller simply tells the aggregate what operation to perform:
 class PlaceOrderService {
   public async execute(command: PlaceOrderCommand): Promise<void> {
-    const order = await this.orderRepo.findById(command.orderId);
-    const customer = await this.customerRepo.findById(command.customerId);
+    const order = await this.orderRepo.findById(new OrderId(command.orderId));
+    const customer = await this.customerRepo.findById(new CustomerId(command.customerId));
 
     // ✅ "Tell, Don't Ask": The aggregate root evaluates its items and guards its own invariants
     order.applyPromotionalDiscount(customer.region);

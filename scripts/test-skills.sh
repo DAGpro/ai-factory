@@ -1503,6 +1503,10 @@ try {
     assert(dm.includes(reconstituteSig));
     assert(po.includes(reconstituteSig));
     assert(po.includes('Money.cents(record.total_amount_cents, record.currency),\n      items,\n      record.version'));
+    assert(!dm.includes('const record = OrderMapper.toPersistence(order)'));
+    assert(dm.includes('const { orderRecord, itemRecords } = OrderMapper.toPersistence(order)'));
+    assert(dm.includes('this.orderRepo.findById(new OrderId(command.orderId))'));
+    assert(dm.includes('this.customerRepo.findById(new CustomerId(command.customerId))'));
     if (logFix) console.error('[FIX] Verified OrderItem/Money API consistency');
 } catch (error) {
     console.error('[FIX] Architecture reference snippet check failed:', error.message);

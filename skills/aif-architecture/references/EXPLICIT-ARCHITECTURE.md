@@ -125,10 +125,20 @@ src/
 │       ├── Jobs/                               # Schedulers, cron tasks, and background workers
 │       │   └── [ProcessName]Scheduler.{ext}    # Triggers periodic use cases via Application Services
 │       ├── Web/                                # HTML views & SSR controllers
+│       │   ├── _Shared/
+│       │   │   └── Components/                 # Cross-channel UI forms (e.g. [EntityName]Form.{ext})
+│       │   # ── Style 2: Unified Multi-Action ──
 │       │   ├── Admin/
+│       │   │   ├── _Shared/                    # Admin-only UI (e.g. AdminUserTable.{ext})
 │       │   │   └── [EntityName]Controller.{ext}
 │       │   └── Public/
 │       │       └── [EntityName]Controller.{ext}
+│       │   # ── Style 1: Feature Subfolders ──
+│       │   # ├── Admin/
+│       │   # │   ├── _Shared/
+│       │   # │   └── Edit[EntityName]/Edit[EntityName]View.{ext}
+│       │   # └── Public/
+│       │   #     └── View[EntityName]/View[EntityName]View.{ext}
 │       └── Cli/                                # Console CLI commands
 │           └── [EntityName]Command.{ext}
 │
